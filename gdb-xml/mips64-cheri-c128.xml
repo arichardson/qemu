@@ -7,7 +7,7 @@
 
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
 <feature name="org.gnu.gdb.mips.cheri128">
-  <reg name="c0" bitsize="128" type="data_ptr" regnum="90"/>
+  <reg name="c0" bitsize="128" type="data_ptr" regnum="73"/>
   <reg name="c1" bitsize="128" type="data_ptr"/>
   <reg name="c2" bitsize="128" type="data_ptr"/>
   <reg name="c3" bitsize="128" type="data_ptr"/>

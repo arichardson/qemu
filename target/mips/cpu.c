@@ -320,6 +320,7 @@ static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
         1, "mips-sys.xml", 0);
 #endif
 #if defined(TARGET_CHERI)
+    assert(cs->gdb_num_regs == 73);
     gdb_register_coprocessor(cs, mips_gdb_get_cheri_reg,
         mips_gdb_set_cheri_reg, 44,
 #if defined(CHERI_MAGIC128) || defined(CHERI_128)
