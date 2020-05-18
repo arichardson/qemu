@@ -1754,6 +1754,15 @@ void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env, MipsExcp exception,
         }
     }
 #endif
+    if (in_kernel_mode(env)) {
+        if (exception == EXCP_TLBL || exception == EXCP_TLBS ||
+            exception == EXCP_AdEL || exception == EXCP_AdES) {
+            error_report("Fatal exception in kernel mode " TARGET_FMT_lx
+                         ": %d, badvaddr=" TARGET_FMT_lx,
+                         cpu_get_recent_pc(env), exception, env->CP0_BadVAddr);
+            do_raise_exception(env, EXCP_DEBUG, pc);
+        }
+    }
     if (qemu_log_instr_or_mask_enabled(env, CPU_LOG_INT)) {
         qemu_log_instr_or_mask_msg(env, CPU_LOG_INT,
             "%s: %s %d\n", __func__, exception <= EXCP_LAST ?
