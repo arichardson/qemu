@@ -324,6 +324,7 @@ static RISCVException write_fcsr(CPURISCVState *env, int csrno,
 {
 #if !defined(CONFIG_USER_ONLY)
     env->mstatus |= MSTATUS_FS;
+    env->mstatus |= MSTATUS_VS;
 #endif
     env->frm = (val & FSR_RD) >> FSR_RD_SHIFT;
     if (vs(env, csrno) >= 0) {
@@ -358,6 +359,9 @@ static RISCVException read_vxrm(CPURISCVState *env, int csrno,
 static RISCVException write_vxrm(CPURISCVState *env, int csrno,
                                  target_ulong val)
 {
+#if !defined(CONFIG_USER_ONLY)
+    env->mstatus |= MSTATUS_VS;
+#endif
     env->vxrm = val;
     return RISCV_EXCP_NONE;
 }
@@ -372,6 +376,9 @@ static RISCVException read_vxsat(CPURISCVState *env, int csrno,
 static RISCVException write_vxsat(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
+#if !defined(CONFIG_USER_ONLY)
+    env->mstatus |= MSTATUS_VS;
+#endif
     env->vxsat = val;
     return RISCV_EXCP_NONE;
 }
@@ -386,6 +393,9 @@ static RISCVException read_vstart(CPURISCVState *env, int csrno,
 static RISCVException write_vstart(CPURISCVState *env, int csrno,
                                    target_ulong val)
 {
+#if !defined(CONFIG_USER_ONLY)
+    env->mstatus |= MSTATUS_VS;
+#endif
     env->vstart = val;
     return RISCV_EXCP_NONE;
 }
@@ -597,7 +607,7 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
     }
     mask = MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_MIE | MSTATUS_MPIE |
            MSTATUS_SPP | MSTATUS_FS | MSTATUS_MPRV | MSTATUS_SUM | MSTATUS_MPP |
-           MSTATUS_MXR | MSTATUS_TVM | MSTATUS_TSR | MSTATUS_TW;
+           MSTATUS_MXR | MSTATUS_TVM | MSTATUS_TSR | MSTATUS_TW | MSTATUS_VS;
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
             mask = mask | MSTATUS64_CRG;
 #endif
