@@ -450,6 +450,7 @@ typedef struct {
     bool ext_zba;
     bool ext_zbb;
     bool ext_zbc;
+    bool ext_zbkb;
     bool ext_zbs;
     bool ext_counters;
     bool ext_ifencei;
