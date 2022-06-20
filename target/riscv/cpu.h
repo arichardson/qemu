@@ -452,7 +452,6 @@ typedef struct {
     bool ext_zbc;
     bool ext_zbkb;
     bool ext_zbs;
-    bool ext_pmu;
     bool ext_ifencei;
     bool ext_zihintpause;
     bool ext_icsr;
@@ -482,8 +481,12 @@ typedef struct {
 #endif
 #endif
 #if defined(TARGET_CHERI_RISCV_STD_093)
-        bool ext_zish4add;
+    bool ext_zish4add;
 #endif
+    bool ext_zish4;
+
+    uint8_t pmu_num;
+
     char *priv_spec;
     char *user_spec;
     char *bext_spec;
