@@ -513,7 +513,6 @@ struct RISCVCPUConfig {
     bool ext_zbc;
     bool ext_zbkb;
     bool ext_zbs;
-    bool ext_pmu;
     bool ext_ifencei;
     bool ext_zihintpause;
     bool ext_icsr;
@@ -556,9 +555,10 @@ struct RISCVCPUConfig {
 #endif
 #endif
 
-
     /* Vendor-specific custom extensions */
     bool ext_XVentanaCondOps;
+
+    uint8_t pmu_num;
 
     char *priv_spec;
     char *user_spec;
