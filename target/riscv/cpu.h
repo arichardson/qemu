@@ -521,6 +521,10 @@ struct RISCVCPUConfig {
     bool ext_svnapot;
     bool ext_svpbmt;
 #endif
+    bool ext_zca;
+    bool ext_zcb;
+    bool ext_zcd;
+    bool ext_zcf;
     bool ext_zdinx;
     bool ext_zfh;
     bool ext_zfhmin;
