@@ -535,7 +535,7 @@ static bool is_cap_csr(int csrno)
 
 
 }
-
+#endif
 
 /*
 TODO: PB Inovke relevant csrxx_cap variants
@@ -623,7 +623,7 @@ static bool trans_csrrs(DisasContext *ctx, arg_csrrs *a)
                              tcg_constant_i32(a->rd), tcg_constant_i32(a->rs1));
         return true;
     }
-#endif    
+#endif
     /*
      * If rs1 == 0, the insn shall not write to the csr at all, nor
      * cause any of the side effects that might occur on a csr write.
@@ -697,7 +697,7 @@ static bool trans_csrrsi(DisasContext *ctx, arg_csrrsi *a)
                               tcg_constant_i32(a->rs1));
         return true;
     }
-#endif    
+#endif
     /*
      * If rs1 == 0, the insn shall not write to the csr at all, nor
      * cause any of the side effects that might occur on a csr write.
