@@ -489,6 +489,58 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
     return true;
 }
 
+#ifdef TARGET_CHERI
+/*
+These functions generate the tcg code for csr acceses.
+As it stands these will not work correctly with the capability ones as they are only expecting 64/32 bit words
+To fix this we will need tcg to use 128 bit types....
+The trans_xxx in the cheri functions which deal with capabilities do not try and manipulate them in tcg, but instead pass the register number into their handler.
+We will need to do this for ours as well.
+
+
+Are we able to use a->rd, and a-> rs to determine if they are capabilities, provide correct pre/post code and dispatch to an appropriate handler (i/e one that expects indices of caps rather than pointers)
+
+*/
+
+
+static bool is_cap_csr(int csrno)
+{
+    switch (csrno)
+    {
+        case CSR_DPCC:
+        case CSR_DSCRATCH0C:
+        case CSR_DSCRATCH1C:
+        case CSR_MTVECC:
+        case CSR_MSCRATCHC:
+        case CSR_MEPCC:
+        case CSR_STVECC:
+        case CSR_SSCRATCHC:
+        case CSR_SEPCC:
+        case CSR_DDDC:
+        case CSR_MTDC:
+        case CSR_STDC:
+        case CSR_DDC:
+        case CSR_DINFC:
+        case CSR_DPC:
+        case CSR_MTVEC:
+        case CSR_MSCRATCH:
+        case CSR_MEPC:
+        case CSR_STVEC:
+        case CSR_SSCRATCH:
+        case CSR_SEPC:
+            return true;
+        default:
+            return false;
+    }
+
+
+}
+
+
+/*
+TODO: PB Inovke relevant csrxx_cap variants
+*/
+
 static bool do_csr_post(DisasContext *ctx)
 {
     /* We may have changed important cpu state -- exit to main loop. */
@@ -537,6 +589,18 @@ static bool do_csrrw(DisasContext *ctx, int rd, int rc, TCGv src, TCGv mask)
 
 static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
 {
+#ifdef TARGET_CHERI
+    if (is_cap_csr(a->csr)) {
+        // currently this is not appropriate as the behaviour is expected the
+        // helper function to return the register value and then the post code
+        // moves this into the rd register. This is not the way that we can do
+        // directly. Need to look at how this is handled elsewhere.
+        gen_helper_csrrw_cap(cpu_env, tcg_constant_i32(a->csr),
+                             tcg_constant_i32(a->rd), tcg_constant_i32(a->rs1));
+        return true;
+    }
+#endif
+
     TCGv src = get_gpr(ctx, a->rs1, EXT_NONE);
 
     /*
@@ -553,6 +617,13 @@ static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
 
 static bool trans_csrrs(DisasContext *ctx, arg_csrrs *a)
 {
+#ifdef TARGET_CHERI
+    if (is_cap_csr(a->csr)) {
+        gen_helper_csrrs_cap(cpu_env, tcg_constant_i32(a->csr),
+                             tcg_constant_i32(a->rd), tcg_constant_i32(a->rs1));
+        return true;
+    }
+#endif    
     /*
      * If rs1 == 0, the insn shall not write to the csr at all, nor
      * cause any of the side effects that might occur on a csr write.
@@ -571,6 +642,13 @@ static bool trans_csrrs(DisasContext *ctx, arg_csrrs *a)
 
 static bool trans_csrrc(DisasContext *ctx, arg_csrrc *a)
 {
+#ifdef TARGET_CHERI
+    if (is_cap_csr(a->csr)) {
+        gen_helper_csrrc_cap(cpu_env, tcg_constant_i32(a->csr),
+                             tcg_constant_i32(a->rd), tcg_constant_i32(a->rs1));
+        return true;
+    }
+#endif
     /*
      * If rs1 == 0, the insn shall not write to the csr at all, nor
      * cause any of the side effects that might occur on a csr write.
@@ -588,6 +666,14 @@ static bool trans_csrrc(DisasContext *ctx, arg_csrrc *a)
 
 static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
 {
+#ifdef TARGET_CHERI
+    if (is_cap_csr(a->csr)) {
+        gen_helper_csrrwi_cap(cpu_env, tcg_constant_i32(a->csr),
+                              tcg_constant_i32(a->rd),
+                              tcg_constant_i32(a->rs1));
+        return true;
+    }
+#endif
     TCGv src = tcg_constant_tl(a->rs1);
 
     /*
@@ -604,6 +690,14 @@ static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
 
 static bool trans_csrrsi(DisasContext *ctx, arg_csrrsi *a)
 {
+#ifdef TARGET_CHERI
+    if (is_cap_csr(a->csr)) {
+        gen_helper_csrrsi_cap(cpu_env, tcg_constant_i32(a->csr),
+                              tcg_constant_i32(a->rd),
+                              tcg_constant_i32(a->rs1));
+        return true;
+    }
+#endif    
     /*
      * If rs1 == 0, the insn shall not write to the csr at all, nor
      * cause any of the side effects that might occur on a csr write.
@@ -622,6 +716,14 @@ static bool trans_csrrsi(DisasContext *ctx, arg_csrrsi *a)
 
 static bool trans_csrrci(DisasContext *ctx, arg_csrrci *a)
 {
+#ifdef TARGET_CHERI
+    if (is_cap_csr(a->csr)) {
+        gen_helper_csrrci_cap(cpu_env, tcg_constant_i32(a->csr),
+                              tcg_constant_i32(a->rd),
+                              tcg_constant_i32(a->rs1));
+        return true;
+    }
+#endif
     /*
      * If rs1 == 0, the insn shall not write to the csr at all, nor
      * cause any of the side effects that might occur on a csr write.
