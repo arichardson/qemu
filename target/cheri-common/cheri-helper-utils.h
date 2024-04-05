@@ -403,6 +403,3 @@ void cheri_jump_and_link_checked(CPUArchState *env, uint32_t link_reg,
                                  const cap_register_t *target,
                                  target_ulong target_addr, uint32_t flags,
                                  uintptr_t _host_return_address);
-
-void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
-                                const cap_register_t *source);
