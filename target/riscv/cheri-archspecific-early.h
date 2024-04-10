@@ -89,7 +89,6 @@ enum CheriSCR {
     CheriSCR_SEPCC = 15,
 
     CheriSCR_MTIDC = 27,
-    CheriSCR_MTCC = 28,
     CheriSCR_MTDC = 29,
     CheriSCR_MScratchC = 30,
     CheriSCR_MEPCC = 31,
