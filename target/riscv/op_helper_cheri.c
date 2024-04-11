@@ -96,7 +96,6 @@ struct SCRInfo {
 
     [CheriSCR_UTIDC] = {.r = true, .w = true, .access = U_ASR_W, .name = "UTIDC"},
 
-    [CheriSCR_STCC] = {.r = true, .w = true, .access = S_ASR_RW, .name = "STCC"},
     [CheriSCR_STDC] = {.r = true, .w = true, .access = S_ASR_RW, .name = "STDC"},
     [CheriSCR_SScratchC] = {.r = true,
                             .w = true,
@@ -427,19 +426,6 @@ void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
         }
 #endif
         switch (index) {
-        case CheriSCR_STCC: {
-            target_ulong new_tvec = SCR_TO_PROGRAM_COUNTER(env, &new_val);
-            target_ulong new_mode = new_tvec & 3;
-            /* The low two bits encode the mode, but only 0 and 1 are valid. */
-            if (new_mode > 1) {
-                /* Invalid mode, keep the old one. */
-                new_tvec &= ~(target_ulong)3;
-                new_tvec |= SCR_TO_PROGRAM_COUNTER(env, scr) & 3;
-            }
-            *scr = new_val;
-            SCR_SET_PROGRAM_COUNTER(env, scr, scr_info[index].name, new_tvec);
-            break;
-        }
         case CheriSCR_DDC:
             if (!new_val.cr_tag) {
                 qemu_log_instr_or_mask_msg(
