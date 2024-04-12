@@ -834,7 +834,6 @@ static inline cap_register_t *riscv_get_scr(CPUArchState *env, uint32_t index)
     case CheriSCR_UTIDC: return &env->utidc;
 
     case CheriSCR_STDC: return &env->stdc;
-    case CheriSCR_SScratchC: return &env->sscratchc;
     case CheriSCR_STIDC: return &env->stidc;
 
     case CheriSCR_MTDC: return &env->mtdc;
