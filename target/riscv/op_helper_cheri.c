@@ -101,7 +101,6 @@ struct SCRInfo {
                             .w = true,
                             .access = S_ASR_RW,
                             .name = "SScratchC"},
-    [CheriSCR_SEPCC] = {.r = true, .w = true, .access = S_ASR_RW, .name = "SEPCC"},
     [CheriSCR_STIDC] = {.r = true, .w = true, .access = S_ASR_W, .name = "STIDC"},
 
     [CheriSCR_MTDC] = {.r = true, .w = true, .access = M_ASR_RW, .name = "MTDC"},
@@ -390,12 +389,6 @@ void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
         assert(scr_info[index].r && "Bug? Should be readable");
         // For xEPCC we clear the low address bit(s) when reading to match xEPC.
         // See helper_sret/helper_mret for more context.
-        switch(index) {
-        case CheriSCR_SEPCC:
-        default:
-            update_capreg(env, cd, scr);
-            break;
-        }
     }
     if (is_write) {
         assert(scr_info[index].w && "Bug? Should be writable");
