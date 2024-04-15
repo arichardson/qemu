@@ -291,6 +291,8 @@
 #define CSR_UTID            0x480
 #define CSR_UTIDC           CSR_UTID
 
+/* CHERI Jump Vector Table Capability*/
+#define CSR_JVTC            0x017
 #endif
 
 /* Performance Counters */

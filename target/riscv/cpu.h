@@ -200,6 +200,10 @@ struct CPURISCVState {
 #endif
 
 #ifdef TARGET_CHERI
+    cap_register_t jvtc;      // Jump vector table capability
+#endif
+
+#ifdef TARGET_CHERI
     cap_register_t utidc; // SCR 3 User thread identifier cap. (UTIDC)
 #endif
 
