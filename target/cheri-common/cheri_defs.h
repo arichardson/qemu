@@ -45,6 +45,7 @@
 
 // clang-format off
 #include "cheri-compressed-cap/cheri_compressed_cap_64.h"
+#include "cheri-compressed-cap/cheri_compressed_cap_64r.h"
 #include "cheri-compressed-cap/cheri_compressed_cap_128.h"
 #include "cheri-compressed-cap/cheri_compressed_cap_128m.h"
 #include "cheri-compressed-cap/cheri_compressed_cap_128r.h"
