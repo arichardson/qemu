@@ -1496,7 +1496,6 @@ static RISCVException write_senvcfg(CPURISCVState *env, int csrno, target_ulong 
     return RISCV_EXCP_NONE;
 }
 
-
 /* Physical Memory Protection */
 static RISCVException read_mseccfg(CPURISCVState *env, int csrno,
                                    target_ulong *val)
