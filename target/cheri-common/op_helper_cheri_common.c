@@ -917,6 +917,71 @@ cincoffset_impl(CPUArchState *env, uint32_t cd, uint32_t cb, target_ulong rt,
                        /*precise_repr_check=*/false, retpc, oob_info);
 }
 
+#ifdef TARGET_CHERI_RISCV_STD
+void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
+                              target_ulong rs1))
+{
+    const cap_register_t *cbp = get_readonly_capreg(env, cs1);
+    /* We do not touch the M bit here, don't copy it into perms. */
+    uint32_t perms = cap_get_all_perms(cbp);
+
+    cap_register_t result = *cbp;
+
+    /* see the comment about capmode in the gcperm helper */
+    if (!cheri_in_capmode(env)) {
+        /* TODO: raise an "illegal instruction" exception */
+        return;
+    }
+
+    if (!cap_is_unsealed(cbp)) {
+        result.cr_tag = 0;
+    }
+
+    /* Enforce the restrictions as per the bakewell specification. */
+
+    /* "Clear ASR-permission unless X-permission is set" */
+    if (!(perms & CAP_AP_ASR)) {
+        perms &= ~CAP_AP_X;
+    }
+
+    /* "Clear C-permission unless R-permission or W-permission are set" */
+    if (!(perms & (CAP_AP_R|CAP_AP_W))) {
+        perms &= ~CAP_AP_C;
+    }
+
+    /*
+     * As of Jun 2024, we skip common rule 3 is about the M bit.
+     * Our policy is that acperm does not modify M.
+     *
+     * TODO: Review this and handle M if the info in the bakewell
+     * specification is sufficient for implementing this.
+     */
+
+#if CAP_CC(ADDR_WIDTH) == 32
+    /* "Clear ASR-permission if all other permissions are not set" */
+    if (!(perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X))) {
+        perms &= ~CAP_AP_ASR;
+    }
+    /* "Clear C-permission and X-permission if R-permission is not set" */
+    if (!(perms & CAP_AP_R)) {
+        perms &= ~(CAP_AP_X | CAP_AP_C);
+    }
+    /*
+     * "Clear X-permission if X-permission and R-permission are set, but
+     * C-permission and W-permission are not set"
+     */
+    if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
+            (CAP_AP_X | CAP_AP_R)) {
+        perms &= ~CAP_AP_X;
+    }
+#endif
+
+    cap_set_perms(&result, perms);
+
+    update_capreg(env, cd, &result);
+}
+#endif
+
 void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
                                 target_ulong rt))
 {
