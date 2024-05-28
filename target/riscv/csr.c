@@ -2157,7 +2157,7 @@ static RISCVException read_ccsr(CPURISCVState *env, int csrno, target_ulong *val
     // The capability cause has moved to xTVAL so we don't report it here.
     RISCVCPU *cpu = env_archcpu(env);
     target_ulong ccsr = 0;
-    ccsr = set_field(ccsr, XCCSR_ENABLE, cpu->cfg.ext_cheri);
+    ccsr = set_field(ccsr, XCCSR_ENABLE, riscv_cpu_mode_cre(env));
     /* Read-only feature bits. */
     ccsr = set_field(ccsr, XCCSR_TAG_CLEARING, CHERI_TAG_CLEAR_ON_INVALID(env));
     ccsr = set_field(ccsr, XCCSR_NO_RELOCATION, CHERI_NO_RELOCATION(env));
