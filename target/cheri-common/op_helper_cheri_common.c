@@ -76,19 +76,19 @@ static DEFINE_CHERI_STAT(misc);
  */
 #define DEFINE_RESULT_VALID bool _cap_valid = true
 #define RESULT_VALID        _cap_valid
-#define raise_cheri_exception_or_invalidate(env, cause, reg)                   \
+#define raise_cheri_exception_or_invalidate(env, cause, type, reg)             \
     do {                                                                       \
         if (CHERI_TAG_CLEAR_ON_INVALID(env))                                   \
             _cap_valid = false;                                                \
         else                                                                   \
-            raise_cheri_exception(env, cause, reg);                            \
+            raise_cheri_exception(env, cause, type, reg);                      \
     } while (false)
-#define raise_cheri_exception_or_invalidate_impl(env, cause, reg, pc)          \
+#define raise_cheri_exception_or_invalidate_impl(env, cause, type, reg, pc)    \
     do {                                                                       \
         if (CHERI_TAG_CLEAR_ON_INVALID(env))                                   \
             _cap_valid = false;                                                \
         else                                                                   \
-            raise_cheri_exception_impl(env, cause, reg, 0, true, pc);          \
+            raise_cheri_exception_impl(env, cause, type, reg, 0, true, pc);    \
     } while (false)
 #define GET_HOST_RETPC_IF_TRAPPING_CHERI_ARCH() GET_HOST_RETPC()
 
@@ -114,8 +114,8 @@ try_set_cap_cursor(CPUArchState *env, const cap_register_t *cptr,
 #endif
 
     if (unlikely(cptr->cr_tag && is_cap_sealed(cptr))) {
-        raise_cheri_exception_or_invalidate_impl(env, CapEx_SealViolation,
-                                                 regnum_src, retpc);
+        raise_cheri_exception_or_invalidate_impl(
+            env, CapEx_SealViolation, CapExType_InstrAccess, regnum_src, retpc);
     }
 #ifndef TARGET_MORELLO
     /*
@@ -422,7 +422,8 @@ void cheri_jump_and_link_checked(CPUArchState *env, uint32_t link_reg,
     /* Morello takes the exception at the target. */
 #if !CHERI_CONTROLFLOW_CHECK_AT_TARGET
     if (!target->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, target_reg);
+        raise_cheri_exception(env, CapEx_TagViolation, CapExType_Branch,
+                              target_reg);
     } else if (cap_is_sealed_with_type(target) ||
                (!cap_is_unsealed(target) &&
                 target_addr != cap_get_cursor(target))) {
@@ -430,9 +431,11 @@ void cheri_jump_and_link_checked(CPUArchState *env, uint32_t link_reg,
          * Note: "sentry" caps can be called using cjalr, but only if the
          * immediate offset is 0, i.e. target_addr==target.address.
          */
-        raise_cheri_exception(env, CapEx_SealViolation, target_reg);
+        raise_cheri_exception(env, CapEx_SealViolation, CapExType_Branch,
+                              target_reg);
     } else if (!cap_has_perms(target, CAP_PERM_EXECUTE)) {
-        raise_cheri_exception(env, CapEx_PermitExecuteViolation, target_reg);
+        raise_cheri_exception(env, CapEx_PermitExecuteViolation,
+                              CapExType_Branch, target_reg);
     } else if (!validate_jump_target(env, target, target_addr, target_reg,
                                      _host_return_address)) {
         assert(false && "Should have raised an exception");
@@ -469,27 +472,37 @@ void CHERI_HELPER_IMPL(cinvoke(CPUArchState *env, uint32_t code_regnum,
      * CInvoke: Call into a new security domain (with matching otypes)
      */
     if (!code_cap->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, code_regnum);
+        raise_cheri_exception(env, CapEx_TagViolation, CapExType_InstrAccess,
+                              code_regnum);
     } else if (!data_cap->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, data_regnum);
+        raise_cheri_exception(env, CapEx_TagViolation, CapExType_InstrAccess,
+                              data_regnum);
     } else if (!cap_is_sealed_with_type(code_cap)) {
-        raise_cheri_exception(env, CapEx_SealViolation, code_regnum);
+        raise_cheri_exception(env, CapEx_SealViolation, CapExType_InstrAccess,
+                              code_regnum);
     } else if (!cap_is_sealed_with_type(data_cap)) {
-        raise_cheri_exception(env, CapEx_SealViolation, data_regnum);
+        raise_cheri_exception(env, CapEx_SealViolation, CapExType_InstrAccess,
+                              data_regnum);
     } else if (cap_get_otype_unsigned(code_cap) != cap_get_otype_unsigned(data_cap) ||
                !cap_is_sealed_with_type(code_cap)) {
-        raise_cheri_exception(env, CapEx_TypeViolation, code_regnum);
+        raise_cheri_exception(env, CapEx_TypeViolation, CapExType_InstrAccess,
+                              code_regnum);
     } else if (!cap_has_perms(code_cap, CAP_PERM_CINVOKE)) {
-        raise_cheri_exception(env, CapEx_PermitCCallViolation, code_regnum);
+        raise_cheri_exception(env, CapEx_PermitCCallViolation,
+                              CapExType_InstrAccess, code_regnum);
     } else if (!cap_has_perms(data_cap, CAP_PERM_CINVOKE)) {
-        raise_cheri_exception(env, CapEx_PermitCCallViolation, data_regnum);
+        raise_cheri_exception(env, CapEx_PermitCCallViolation,
+                              CapExType_InstrAccess, data_regnum);
     } else if (!cap_has_perms(code_cap, CAP_PERM_EXECUTE)) {
-        raise_cheri_exception(env, CapEx_PermitExecuteViolation, code_regnum);
+        raise_cheri_exception(env, CapEx_PermitExecuteViolation,
+                              CapExType_InstrAccess, code_regnum);
     } else if (cap_has_perms(data_cap, CAP_PERM_EXECUTE)) {
-        raise_cheri_exception(env, CapEx_PermitExecuteViolation, data_regnum);
+        raise_cheri_exception(env, CapEx_PermitExecuteViolation,
+                              CapExType_InstrAccess, data_regnum);
     } else if (!validate_jump_target(env, code_cap, cap_get_cursor(code_cap),
                                      code_regnum, _host_return_address)) {
-        raise_cheri_exception(env, CapEx_LengthViolation, code_regnum);
+        raise_cheri_exception(env, CapEx_LengthViolation, CapExType_InstrAccess,
+                              code_regnum);
     } else {
         // Unseal code and data cap now that the checks have succeeded.
         cap_register_t idc = *data_cap;
@@ -522,9 +535,11 @@ void CHERI_HELPER_IMPL(csealentry(CPUArchState *env, uint32_t cd, uint32_t cs))
     DEFINE_RESULT_VALID;
     const cap_register_t *csp = get_readonly_capreg(env, cs);
     if (!csp->cr_tag) {
-        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation, cs);
+        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation,
+                                            CapExType_InstrAccess, cs);
     } else if (!cap_is_unsealed(csp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation, cs);
+        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
+                                            CapExType_InstrAccess, cs);
     }
 #ifdef TARGET_MIPS
     /*
@@ -535,7 +550,8 @@ void CHERI_HELPER_IMPL(csealentry(CPUArchState *env, uint32_t cd, uint32_t cs))
      * have a CHERI-RISC-V testsuite).
      */
     if (!cap_has_perms(csp, CAP_PERM_EXECUTE)) {
-        raise_cheri_exception(env, CapEx_PermitExecuteViolation, cs);
+        raise_cheri_exception(env, CapEx_PermitExecuteViolation,
+                              CapExType_InstrAccess, cs);
     }
 #endif
     cap_register_t result = *csp;
@@ -558,9 +574,9 @@ void CHERI_HELPER_IMPL(ccheckperm(CPUArchState *env, uint32_t cs,
      * CCheckPerm: Raise exception if don't have permission
      */
     if (!csp->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, cs);
+        raise_cheri_exception(env, CapEx_TagViolation, CapExType_Data, cs);
     } else if ((cap_get_all_perms(csp) & rt) != rt) {
-        raise_cheri_exception(env, CapEx_UserDefViolation, cs);
+        raise_cheri_exception(env, CapEx_UserDefViolation, CapExType_Data, cs);
     }
 }
 
@@ -639,26 +655,35 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
 #endif
     const cap_register_t *cbp = get_capreg_0_is_ddc(env, cb);
     if (!cbp->cr_tag) {
-        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation,
+                                            CapExType_Data, cb);
     } else if (!cbp->cr_bounds_valid) {
         /* Malformed bounds should raise a length violation. */
-        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                                            CapExType_Data, cb);
     } else if (!cap_is_unsealed(cbp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
+                                            CapExType_Data, cb);
     } else if (cap_get_base(ctp) < cap_get_base(cbp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                                            CapExType_Data, cb);
     } else if (cap_get_top_full(ctp) > cap_get_top_full(cbp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                                            CapExType_Data, cb);
     } else if (cap_get_base(ctp) > cap_get_top_full(ctp)) {
         // check for length < 0 - possible because cs2 might be untagged
-        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, ct);
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                                            CapExType_Data, ct);
     } else if ((cap_get_all_perms(ctp) & cap_get_all_perms(cbp)) !=
                cap_get_all_perms(ctp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_UserDefViolation, cb);
-    } else if (cap_has_invalid_perms_encoding(ctp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_UserDefViolation, ct);
+        raise_cheri_exception_or_invalidate(env, CapEx_UserDefViolation,
+                                            CapExType_Data, cb);
+    } else if (!cap_has_invalid_perms_encoding(ctp)) {
+        raise_cheri_exception_or_invalidate(env, CapEx_UserDefViolation,
+                                            CapExType_Data, ct);
     } else if (cap_has_reserved_bits_set(ctp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, ct);
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                                            CapExType_Data, ct);
     }
 
     if (!RESULT_VALID) {
@@ -705,9 +730,11 @@ void CHERI_HELPER_IMPL(ccopytype(CPUArchState *env, uint32_t cd, uint32_t cb,
     const cap_register_t *cbp = get_readonly_capreg(env, cb);
     const cap_register_t *ctp = get_readonly_capreg(env, ct);
     if (!cbp->cr_tag) {
-        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation,
+                                            CapExType_Data, cb);
     } else if (is_cap_sealed(cbp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
+                                            CapExType_Data, cb);
     }
     if (cap_is_sealed_with_reserved_otype(ctp) || cap_is_unsealed(ctp)) {
         if (CHERI_TAG_CLEAR_ON_INVALID(env)) {
@@ -721,9 +748,11 @@ void CHERI_HELPER_IMPL(ccopytype(CPUArchState *env, uint32_t cd, uint32_t cb,
         }
     }
     if (cap_get_otype_unsigned(ctp) < cap_get_base(cbp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                                            CapExType_Data, cb);
     } else if (cap_get_otype_unsigned(ctp) >= cap_get_top(cbp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                                            CapExType_Data, cb);
     }
     cap_register_t result = *cbp;
     if (!RESULT_VALID) {
@@ -750,9 +779,11 @@ static void cseal_common(CPUArchState *env, uint32_t cd, uint32_t cs,
             update_capreg(env, cd, csp);
             return;
         }
-        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation, ct);
+        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation,
+                                            CapExType_Data, ct);
     } else if (!csp->cr_tag) {
-        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation, cs);
+        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation,
+                                            CapExType_Data, cs);
     } else if (conditional && !cap_is_unsealed(csp)) {
         update_capreg(env, cd, csp);
         return;
@@ -764,18 +795,24 @@ static void cseal_common(CPUArchState *env, uint32_t cd, uint32_t cs,
         update_capreg(env, cd, csp);
         return;
     } else if (!conditional && !cap_is_unsealed(csp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation, cs);
+        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
+                                            CapExType_Data, cs);
     } else if (!cap_is_unsealed(ctp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation, ct);
+        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
+                                            CapExType_Data, ct);
     } else if (!cap_has_perms(ctp, CAP_PERM_SEAL)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_PermitSealViolation, ct);
+        raise_cheri_exception_or_invalidate(env, CapEx_PermitSealViolation,
+                                            CapExType_Data, ct);
     } else if (!conditional && !cap_cursor_in_bounds(ctp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, ct);
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                                            CapExType_Data, ct);
     } else if (ct_base_plus_offset > CAP_MAX_REPRESENTABLE_OTYPE ||
                cap_otype_is_reserved(ct_base_plus_offset)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, ct);
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                                            CapExType_Data, ct);
     } else if (!is_representable_cap_with_addr(csp, cap_get_cursor(csp))) {
-        raise_cheri_exception_or_invalidate(env, CapEx_InexactBounds, cs);
+        raise_cheri_exception_or_invalidate(env, CapEx_InexactBounds,
+                                            CapExType_Data, cs);
     }
     cap_register_t result = *csp;
     if (!RESULT_VALID) {
@@ -819,28 +856,36 @@ void CHERI_HELPER_IMPL(cunseal(CPUArchState *env, uint32_t cd, uint32_t cs,
      * CUnseal: Unseal a sealed capability
      */
     if (!csp->cr_tag) {
-        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation, cs);
+        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation,
+                                            CapExType_Data, cs);
     } else if (!ctp->cr_tag) {
-        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation, ct);
+        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation,
+                                            CapExType_Data, ct);
     } else if (cap_is_unsealed(csp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation, cs);
+        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
+                                            CapExType_Data, cs);
     } else if (!cap_is_unsealed(ctp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation, ct);
+        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
+                                            CapExType_Data, ct);
     } else if (!cap_is_sealed_with_type(csp)) {
         /* Reserved otypes are not allowed. */
-        raise_cheri_exception_or_invalidate(env, CapEx_TypeViolation, cs);
+        raise_cheri_exception_or_invalidate(env, CapEx_TypeViolation,
+                                            CapExType_Data, cs);
     } else if (ct_cursor != cap_get_otype_unsigned(csp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_TypeViolation, ct);
+        raise_cheri_exception_or_invalidate(env, CapEx_TypeViolation,
+                                            CapExType_Data, ct);
     } else if (!cap_has_perms(ctp, CAP_PERM_UNSEAL)) {
         raise_cheri_exception_or_invalidate(env, CapEx_PermitUnsealViolation,
-                                            ct);
+                                            CapExType_Data, ct);
     } else if (!cap_cursor_in_bounds(ctp)) {
         /* Must be in bounds and not one past end (i.e. not equal to top). */
-        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, ct);
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                                            CapExType_Data, ct);
     } else if (ct_cursor > CAP_MAX_REPRESENTABLE_OTYPE ||
                cap_otype_is_reserved(ct_cursor)) {
         /* This should never happen due to the ct_cursor != cs_otype check. */
-        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, ct);
+        raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
+                                            CapExType_Data, ct);
     }
 
     cap_register_t result = *csp;
@@ -993,9 +1038,11 @@ void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
      * CAndPerm: Restrict Permissions
      */
     if (!cbp->cr_tag) {
-        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation,
+                                            CapExType_Data, cb);
     } else if (!cap_is_unsealed(cbp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
+                                            CapExType_Data, cb);
     }
 
     cap_register_t result = *cbp;
@@ -1071,9 +1118,11 @@ void CHERI_HELPER_IMPL(cfromptr(CPUArchState *env, uint32_t cd, uint32_t cb,
         update_capreg(env, cd, null_capability(&result));
         return;
     } else if (!cbp->cr_tag) {
-        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_TagViolation,
+                                            CapExType_Data, cb);
     } else if (is_cap_sealed(cbp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
+                                            CapExType_Data, cb);
     }
     cap_register_t result = *cbp;
     if (!RESULT_VALID) {
@@ -1113,11 +1162,12 @@ static void do_setbounds(bool must_be_exact, CPUArchState *env, uint32_t cd,
          * perform these checks here.
          */
         if (!cbp->cr_tag) {
-            raise_cheri_exception(env, CapEx_TagViolation, cb);
+            raise_cheri_exception(env, CapEx_TagViolation, CapExType_Data, cb);
         } else if (is_cap_sealed(cbp)) {
-            raise_cheri_exception(env, CapEx_SealViolation, cb);
+            raise_cheri_exception(env, CapEx_SealViolation, CapExType_Data, cb);
         } else if (!cap_is_in_bounds(cbp, cap_get_cursor(cbp), length)) {
-            raise_cheri_exception(env, CapEx_LengthViolation, cb);
+            raise_cheri_exception(env, CapEx_LengthViolation, CapExType_Data,
+                                  cb);
         }
         /* Use checked_setbounds to ensure we didn't missed any checks. */
         exact = CAP_cc(checked_setbounds)(&result, length);
@@ -1132,7 +1182,8 @@ static void do_setbounds(bool must_be_exact, CPUArchState *env, uint32_t cd,
     if (!exact)
         env->statcounters_imprecise_setbounds++;
     if (must_be_exact && !exact) {
-        raise_cheri_exception_or_invalidate(env, CapEx_InexactBounds, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_InexactBounds,
+                                            CapExType_Data, cb);
     }
 
     if (RESULT_VALID) {
@@ -1185,7 +1236,8 @@ void CHERI_HELPER_IMPL(csetflags(CPUArchState *env, uint32_t cd, uint32_t cb,
      * CSetFlags: Set Flags
      */
     if (cbp->cr_tag && !cap_is_unsealed(cbp)) {
-        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation, cb);
+        raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
+                                            CapExType_Data, cb);
     }
     cap_register_t result = *cbp;
     if (!RESULT_VALID) {
@@ -1278,7 +1330,7 @@ target_ulong CHERI_HELPER_IMPL(ctoptr(CPUArchState *env, uint32_t cb,
      * CToPtr: Capability to Pointer
      */
     if (!CHERI_TAG_CLEAR_ON_INVALID(env) && !ctp->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, ct);
+        raise_cheri_exception(env, CapEx_TagViolation, CapExType_Data, ct);
     }
     if (!cbp->cr_tag) {
         return (target_ulong)0;
@@ -1680,7 +1732,8 @@ raise_pcc_fault(CPUArchState *env, CheriCapExcCause cause, target_ulong addr)
      * The PC fetched from the generated code will often be out-of-bounds, so
      * fetching it will trigger an assertion.
      */
-    raise_cheri_exception_if(env, cause, addr, CHERI_EXC_REGNUM_PCC);
+    raise_cheri_exception_if(env, cause, CapExType_InstrAccess, addr,
+                             CHERI_EXC_REGNUM_PCC);
 }
 
 void CHERI_HELPER_IMPL(raise_exception_pcc_perms(CPUArchState *env))
