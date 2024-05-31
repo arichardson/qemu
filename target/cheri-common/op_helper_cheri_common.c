@@ -870,10 +870,12 @@ void CHERI_HELPER_IMPL(cunseal(CPUArchState *env, uint32_t cd, uint32_t cs,
     } else if (!cap_is_unsealed(ctp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
                                             CapExType_Data, ct);
+#ifndef TARGET_CHERI_RISCV_STD
     } else if (!cap_is_sealed_with_type(csp)) {
         /* Reserved otypes are not allowed. */
         raise_cheri_exception_or_invalidate(env, CapEx_TypeViolation,
                                             CapExType_Data, cs);
+#endif
     } else if (ct_cursor != cap_get_otype_unsigned(csp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_TypeViolation,
                                             CapExType_Data, ct);
