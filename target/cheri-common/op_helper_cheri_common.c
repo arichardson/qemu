@@ -280,6 +280,10 @@ target_ulong CHERI_HELPER_IMPL(cgetperm(CPUArchState *env, uint32_t cb))
     target_ulong perms = cap_get_all_perms(cbp);
     cheri_debug_assert(((perms & CAP_VALID_PERM_BITS) == perms) &&
                        "Unknown permission bits set!");
+    if (cap_has_invalid_perms_encoding(cbp)) {
+        /* For invalid architectural perms, zero every except SW perms. */
+        return perms & CAP_CC(PERM_SW_ALL);
+    }
     return perms;
 }
 
