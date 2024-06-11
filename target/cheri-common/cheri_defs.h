@@ -172,6 +172,17 @@ typedef enum CheriPermissions {
 #endif
 } CheriPermissions;
 
+#ifdef TARGET_RISCV
+#define CAP_AP_C CAP_CC(PERM_CAPABILITY)
+#define CAP_AP_W CAP_CC(PERM_WRITE)
+#define CAP_AP_R CAP_CC(PERM_READ)
+#define CAP_AP_X CAP_CC(PERM_EXECUTE)
+#define CAP_AP_ASR CAP_CC(PERM_ACCESS_SYS_REGS)
+#define CAP_AP_LM CAP_CC(PERM_LOAD_MUTABLE)
+#define CAP_AP_EL CAP_CC(PERM_ELEVATE_LEVEL)
+#define CAP_AP_SL CAP_CC(PERM_STORE_LEVEL)
+#endif
+
 typedef enum CheriExecMode {
     CHERI_EXEC_INTMODE = 0,
     CHERI_EXEC_CAPMODE = 1,

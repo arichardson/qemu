@@ -136,16 +136,6 @@ static inline bool cap_has_reserved_bits_set(const cap_register_t *c)
     return CAP_cc(get_reserved)(c) != 0;
 }
 
-/**
- * Returns true if the permissions encoding in @p c could not have been
- * produced by a valid ACPERM sequence.
- */
-static inline bool cap_has_invalid_perms_encoding(const cap_register_t *c)
-{
-    /* TODO: implement this for the RISC-V standard. */
-    return false;
-}
-
 // The top of the capability (exclusive -- i.e., one past the end)
 static inline target_ulong cap_get_top(const cap_register_t *c)
 {
@@ -290,6 +280,65 @@ static inline void cap_make_sealed_entry(cap_register_t *c)
            "Should only be used with unsealed capabilities");
     CAP_cc(update_otype)(c, CAP_OTYPE_SENTRY);
 }
+
+/*
+ * Check if cr_arch_perm contains a valid set of bakewell architectural
+ * permissions (AP). A set is valid if it could have been produced by acperm.
+ */
+static inline bool valid_ap(uint8_t cr_arch_perm)
+{
+#ifdef TARGET_CHERI_RISCV_STD
+    /* "ASR permission cannot be set without X permission" */
+    if ((cr_arch_perm & (CAP_AP_ASR | CAP_AP_X)) == CAP_AP_ASR) {
+        return false;
+    }
+    /*
+     * "C-permission cannot be set without at least one of R-permission or
+     * W-permission being set."
+     */
+    if ((cr_arch_perm & (CAP_AP_C | CAP_AP_R | CAP_AP_W)) == CAP_AP_C) {
+        return false;
+    }
+
+    /*
+     * We do not check that "M-bit cannot be set without X-permission being
+     * set". The handling of the M-bit depends on the specific instruction
+     * (M might be filtered out from cr_arch_perm, caller might have checked M,
+     * M might be updated based on X, ...)
+     */
+
+#if CAP_CC(ADDR_WIDTH) == 32
+    /* ASR requires that at least one other permission be set. */
+    if ((cr_arch_perm &
+          (CAP_AP_ASR | CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X)) == CAP_AP_ASR) {
+        return false;
+    }
+    /* If R is not set, C and X must not be set either. */
+    if (!(cr_arch_perm & CAP_AP_R)) {
+        if (cr_arch_perm & (CAP_AP_C | CAP_AP_X)) {
+            return false;
+        }
+    }
+    /* It's an error if X and R are set, but W and C aren't. */
+    if ((cr_arch_perm & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
+            (CAP_AP_X | CAP_AP_R)) {
+        return false;
+    }
+#endif
+#endif
+    return true;
+}
+
+/**
+ * Returns true if the permissions encoding in @p c could not have been
+ * produced by a valid ACPERM sequence.
+ */
+static inline bool cap_has_invalid_perms_encoding(const cap_register_t *c)
+{
+    /* TODO: implement this for the RISC-V standard. */
+    return !valid_ap(cap_get_all_perms(c));
+}
+
 
 /*
  * Check if cr_arch_perm contains a valid set of bakewell architectural
