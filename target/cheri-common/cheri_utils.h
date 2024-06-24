@@ -133,7 +133,7 @@ static inline void cap_set_exec_mode(cap_register_t *c, CheriExecMode mode)
 
 static inline bool cap_has_reserved_bits_set(const cap_register_t *c)
 {
-    return CAP_cc(get_reserved)(c) != 0;
+    return (CAP_cc(get_reserved)(c) != 0) || (CAP_cc(get_reserved2)(c) != 0);
 }
 
 // The top of the capability (exclusive -- i.e., one past the end)
