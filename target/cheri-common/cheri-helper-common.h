@@ -126,6 +126,9 @@ DEF_HELPER_4(csetoffset, void, env, i32, i32, tl)
 // Three operands (int cap cap)
 DEF_HELPER_3(csub, tl, env, i32, i32)
 DEF_HELPER_3(ctestsubset, tl, env, i32, i32)
+#ifdef TARGET_RISCV
+DEF_HELPER_3(scss, tl, env, i32, i32)
+#endif
 DEF_HELPER_3(cseqx, tl, env, i32, i32)
 DEF_HELPER_3(ctoptr, tl, env, i32, i32)
 
