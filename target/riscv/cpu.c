@@ -981,6 +981,12 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             // Non-standard extensions present
             ext |= RV('X');
         }
+#else
+        set_feature(env, RISCV_FEATURE_CHERI_PURECAP);
+        if (!cpu->cfg.ext_cheri_purecap) {
+            set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
+        }
+#endif
 #endif
         set_feature(env, RISCV_FEATURE_STID);
 #endif
@@ -1061,6 +1067,9 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("mmu", RISCVCPU, cfg.mmu, true),
     DEFINE_PROP_BOOL("pmp", RISCVCPU, cfg.pmp, true),
 
+#ifdef TARGET_CHERI_RISCV_STD
+    DEFINE_PROP_BOOL("Xcheri_purecap", RISCVCPU, cfg.ext_cheri_purecap, false),
+#endif
     DEFINE_PROP_STRING("priv_spec", RISCVCPU, cfg.priv_spec),
 
     /* These are experimental so mark with 'x-' */
