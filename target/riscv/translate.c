@@ -87,6 +87,7 @@ typedef struct DisasContext {
     bool hlsx;
 #ifdef TARGET_CHERI
     bool capmode;
+    bool hybrid;
 #endif
     /* vector extension */
     bool vill;
@@ -557,6 +558,16 @@ static bool pred_xcheri_rv32(DisasContext *ctx)
     return pred_xcheri(ctx) && get_xl(ctx) == MXL_RV32;
 }
 
+static bool pred_hybrid(DisasContext *ctx)
+{
+#ifdef TARGET_CHERI_RISCV_V9
+    return pred_xcheri(ctx);
+#else
+    return ctx->hybrid;
+#endif
+}
+
+
 /* Include the auto-generated decoder for 32 bit insn */
 #include "decode-insn32.c.inc"
 
@@ -900,6 +911,9 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->mstatus_fs = tb_flags & TB_FLAGS_MSTATUS_FS;
 #ifdef TARGET_CHERI
     ctx->capmode = tb_in_capmode(ctx->base.tb);
+#ifdef TARGET_CHERI_RISCV_STD
+    ctx->hybrid = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID);
+#endif
 #endif
     ctx->priv_ver = env->priv_ver;
 #if !defined(CONFIG_USER_ONLY)
