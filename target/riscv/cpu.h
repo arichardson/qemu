@@ -78,6 +78,8 @@ enum {
     RISCV_FEATURE_PMP,
     RISCV_FEATURE_EPMP,
     RISCV_FEATURE_MISA,
+    RISCV_FEATURE_CHERI_PURECAP,
+    RISCV_FEATURE_CHERI_HYBRID,
     RISCV_FEATURE_STID,
 };
 
@@ -454,6 +456,9 @@ struct RISCVCPU {
         bool ext_counters;
         bool ext_ifencei;
         bool ext_icsr;
+#ifdef TARGET_CHERI
+        bool ext_cheri_purecap;
+#endif
         char *priv_spec;
         char *user_spec;
         char *bext_spec;
