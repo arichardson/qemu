@@ -755,6 +755,9 @@ static void riscv_cpu_reset(DeviceState *dev)
      * See Table 5.2: Special Capability Registers (SCRs) in the CHERI ISA spec
      */
     set_max_perms_capability(&env->pcc, env->resetvec);
+    if (!riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)) {
+        cap_set_exec_mode(&env->pcc, CHERI_EXEC_INTMODE);
+    }
     set_max_perms_capability(&env->ddc, 0);
     // Supervisor mode trap handling
     set_max_perms_capability(&env->stvecc, 0);
