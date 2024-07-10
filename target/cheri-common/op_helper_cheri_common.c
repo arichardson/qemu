@@ -914,11 +914,17 @@ cincoffset_impl(CPUArchState *env, uint32_t cd, uint32_t cb, target_ulong rt,
      */
     target_ulong new_addr = cap_get_cursor(cbp) + rt;
     /*
-     * CIncOffset and CSetOffset use the approximate fast representability
-     * check rather than a precise one.
+     * For the cheri risc-v formats, the fast representability check was
+     * removed. There are cases where fast and full checks return different
+     * results. The fast check does not have access to a carry-over bit that
+     * may push the capability out of the representable area. It has to assume
+     * that this bit is always set.
+     *
+     * For the v9 formats, we want the fast representability check.
      */
     try_set_cap_cursor(env, cbp, cb, cd, new_addr,
-                       /*precise_repr_check=*/false, retpc, oob_info);
+                       /* precise_repr_check */ CHERI_FMT_RISCV ? true : false,
+                       retpc, oob_info);
 }
 
 #ifdef TARGET_CHERI_RISCV_STD
