@@ -83,18 +83,18 @@ cseqx       0100001  ..... ..... 000 ..... 1011011 @rcc
 
 # RISC-V standard instructions
 {
-  cmv   0000110  00000 ..... 000 ..... 0110011 @cc
-  cadd  0000110  ..... ..... 000 ..... 0110011 @ccr
+  cmv   0000110  00000 ..... 000 ..... 0110011 @cc ?pred_cre
+  cadd  0000110  ..... ..... 000 ..... 0110011 @ccr ?pred_cre
 }
-scaddr  0000110  ..... ..... 001 ..... 0110011 @ccr
-acperm  0000110  ..... ..... 010 ..... 0110011 @ccr
-schi    0000110  ..... ..... 011 ..... 0110011 @ccr
-sceq    0000110  ..... ..... 100 ..... 0110011 @rcc
-cbld    0000110  ..... ..... 101 ..... 0110011 @ccc
-scss    0000110  ..... ..... 110 ..... 0110011 @rcc
-scbnds  0000111  ..... ..... 000 ..... 0110011 @ccr
-scbndsr 0000111  ..... ..... 001 ..... 0110011 @ccr
-scmode  0000110  ..... ..... 111 ..... 0110011 @ccr ?pred_hybrid
+scaddr  0000110  ..... ..... 001 ..... 0110011 @ccr ?pred_cre
+acperm  0000110  ..... ..... 010 ..... 0110011 @ccr ?pred_cre
+schi    0000110  ..... ..... 011 ..... 0110011 @ccr ?pred_cre
+sceq    0000110  ..... ..... 100 ..... 0110011 @rcc ?pred_cre
+cbld    0000110  ..... ..... 101 ..... 0110011 @ccc ?pred_cre
+scss    0000110  ..... ..... 110 ..... 0110011 @rcc ?pred_cre
+scbnds  0000111  ..... ..... 000 ..... 0110011 @ccr ?pred_cre
+scbndsr 0000111  ..... ..... 001 ..... 0110011 @ccr ?pred_cre
+scmode  0000110  ..... ..... 111 ..... 0110011 @ccr ?pred_cre ?pred_hybrid
 
 
 ### Two operands (source and dest)
@@ -122,15 +122,15 @@ jalr_pcc    1111111  10100 ..... 000 ..... 1011011 @r2
 cgethigh    1111111  10111 ..... 000 ..... 1011011 @rc
 
 # RISC-V standard instructions
-gctag       0001000  00000 ..... 000 ..... 0110011 @rc
-gcperm      0001000  00001 ..... 000 ..... 0110011 @rc
-gctype      0001000  00010 ..... 000 ..... 0110011 @rc
-gcmode      0001000  00011 ..... 000 ..... 0110011 @rc ?pred_hybrid
-gchi        0001000  00100 ..... 000 ..... 0110011 @rc
-gcbase      0001000  00101 ..... 000 ..... 0110011 @rc
-gclen       0001000  00110 ..... 000 ..... 0110011 @rc
-cram        0001000  00111 ..... 000 ..... 0110011 @r2
-sentry      0001000  01000 ..... 000 ..... 0110011 @cc
+gctag       0001000  00000 ..... 000 ..... 0110011 @rc ?pred_cre
+gcperm      0001000  00001 ..... 000 ..... 0110011 @rc ?pred_cre
+gctype      0001000  00010 ..... 000 ..... 0110011 @rc ?pred_cre
+gcmode      0001000  00011 ..... 000 ..... 0110011 @rc ?pred_cre ?pred_hybrid
+gchi        0001000  00100 ..... 000 ..... 0110011 @rc ?pred_cre
+gcbase      0001000  00101 ..... 000 ..... 0110011 @rc ?pred_cre
+gclen       0001000  00110 ..... 000 ..... 0110011 @rc ?pred_cre
+cram        0001000  00111 ..... 000 ..... 0110011 @r2 ?pred_cre
+sentry      0001000  01000 ..... 000 ..... 0110011 @cc ?pred_cre
 
 
 # There is an existing @sfence_vma format with rs1+rs2 fields, but let's define a new name
@@ -160,8 +160,8 @@ cinvoke  1111110  ..... ..... 000 00001 1011011 @r_2source
 cincoffsetimm ............     ..... 001 ..... 1011011 @i
 csetboundsimm ............     ..... 010 ..... 1011011 @i_unsigned
 
-scbndsi       000001 . ..... ..... 101 ..... 0010011 @is_unsigned
-caddi         ............   ..... 010 ..... 0011011 @cci
+scbndsi       000001 . ..... ..... 101 ..... 0010011 @is_unsigned ?pred_cre
+caddi         ............   ..... 010 ..... 0011011 @cci ?pred_cre
 
 ### Memory Stores (including Store-Conditional) with Explicit Address Type
 sc_b_ddc       1111100  ..... ..... 000 10000 1011011 @atom_st_cap_or_ddc
@@ -183,5 +183,5 @@ sc_w_cap       1111100  ..... ..... 000 11010 1011011 @atom_st_cap_or_ddc
 
 ### Zero operands
 
-modesw_cap 0001001 00000 00000 001 00000 0110011 ?pred_hybrid
-modesw_int 0001010 00000 00000 001 00000 0110011 ?pred_hybrid
+modesw_cap 0001001 00000 00000 001 00000 0110011 ?pred_cre ?pred_hybrid
+modesw_int 0001010 00000 00000 001 00000 0110011 ?pred_cre ?pred_hybrid
