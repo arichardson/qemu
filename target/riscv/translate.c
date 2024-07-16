@@ -561,6 +561,7 @@ static bool pred_xcheri_rv32(DisasContext *ctx)
     return pred_xcheri(ctx) && get_xl(ctx) == MXL_RV32;
 }
 
+#ifdef TARGET_CHERI
 static bool pred_hybrid(DisasContext *ctx)
 {
 #ifdef TARGET_CHERI_RISCV_V9
@@ -569,6 +570,7 @@ static bool pred_hybrid(DisasContext *ctx)
     return ctx->hybrid;
 #endif
 }
+#endif
 
 
 /* Include the auto-generated decoder for 32 bit insn */
