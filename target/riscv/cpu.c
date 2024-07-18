@@ -971,17 +971,17 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             ext |= RVJ;
         }
 
-#ifdef TARGET_CHERI
-        // Non-standard extensions present
-        ext |= RV('X');
-        set_feature(env, RISCV_FEATURE_CHERI_PURECAP);
-        if (!cpu->cfg.ext_cheri_purecap) {
-            set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
-        }
-#endif
-
         set_misa(env, env->misa_mxl, ext);
     }
+
+#ifdef TARGET_CHERI
+    // Non-standard extensions present
+    set_misa(env, env->misa_mxl, env->misa_ext | RV('X'));
+    set_feature(env, RISCV_FEATURE_CHERI_PURECAP);
+    if (!cpu->cfg.ext_cheri_purecap) {
+        set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
+    }
+#endif
 
     riscv_cpu_register_gdb_regs_for_features(cs);
 
