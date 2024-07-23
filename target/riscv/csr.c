@@ -1831,6 +1831,12 @@ static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
       return &env->jvtc;
     case CSR_DDC:
         return &env->ddc;
+    case CSR_MTIDC:
+        return &env->mtidc;
+    case CSR_STIDC:
+        return &env->stidc;
+    case CSR_UTIDC:
+        return &env->utidc;
     default:
         assert(false && "Should have raised an invalid inst trap!");
     }
@@ -2530,6 +2536,12 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
       CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
     { "jvtc", CSR_JVTC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG },
+    { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+    { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG},
+    { "utidc", CSR_UTIDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
 };
 
 riscv_csr_cap_ops *get_csr_cap_info(uint32_t csrnum)
