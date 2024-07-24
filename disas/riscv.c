@@ -624,6 +624,10 @@ typedef enum {
     rv_op_c_sc,
     rv_op_c_lcsp,
     rv_op_c_scsp,
+    rv_op_c_lc_rv32,
+    rv_op_c_sc_rv32,
+    rv_op_c_lcsp_rv32,
+    rv_op_c_scsp_rv32,
 } rv_op;
 
 /* structures */
@@ -1390,9 +1394,17 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_c_sc] = { "sc", rv_codec_cs_sq, rv_fmt_cs2_offset_cs1, NULL, 0, 0,
                      0 },
     [rv_op_c_lcsp] = { "lc", rv_codec_ci_lqsp, rv_fmt_cd_offset_cs1, NULL, 0, 0,
-                     0 },
-    [rv_op_c_scsp] = { "sc", rv_codec_css_sqsp, rv_fmt_cs2_offset_cs1, NULL, 0, 0,
-                     0 },
+                       0 },
+    [rv_op_c_scsp] = { "sc", rv_codec_css_sqsp, rv_fmt_cs2_offset_cs1, NULL, 0,
+                       0, 0 },
+    [rv_op_c_lc_rv32] = { "lc", rv_codec_cl_ld, rv_fmt_cd_offset_cs1, NULL, 0,
+                          0, 0 },
+    [rv_op_c_sc_rv32] = { "sc", rv_codec_cs_sd, rv_fmt_cs2_offset_cs1, NULL, 0,
+                          0, 0 },
+    [rv_op_c_lcsp_rv32] = { "lc", rv_codec_ci_ldsp, rv_fmt_cd_offset_cs1, NULL,
+                            0, 0, 0 },
+    [rv_op_c_scsp_rv32] = { "sc", rv_codec_css_sdsp, rv_fmt_cs2_offset_cs1,
+                            NULL, 0, 0, 0 },
 
     // Three operand
     [rv_op_cspecialrw] = { "cspecialrw", rv_codec_r, rv_fmt_cd_scr_cs1, NULL, 0, 0, 0 },
@@ -1734,7 +1746,8 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
         case 2: op = rv_op_c_lw; break;
         case 3:
             if (isa == rv32) {
-                op = rv_op_c_flw;
+                op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_c_lcsp_rv32
+                                                      : rv_op_c_flw;
             } else {
                 op = rv_op_c_ld;
             }
@@ -1749,7 +1762,8 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
         case 6: op = rv_op_c_sw; break;
         case 7:
             if (isa == rv32) {
-                op = rv_op_c_fsw;
+                op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_c_sc_rv32
+                                                      : rv_op_c_fsw;
             } else {
                 op = rv_op_c_sd;
             }
@@ -1819,7 +1833,8 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
         case 2: op = rv_op_c_lwsp; break;
         case 3:
             if (isa == rv32) {
-                op = rv_op_c_flwsp;
+                op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_c_lcsp_rv32
+                                                      : rv_op_c_flwsp;
             } else {
                 op = rv_op_c_ldsp;
             }
@@ -1855,7 +1870,8 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa, int flags)
         case 6: op = rv_op_c_swsp; break;
         case 7:
             if (isa == rv32) {
-                op = rv_op_c_fswsp;
+                op = (flags & RISCV_DIS_FLAG_CAPMODE) ? rv_op_c_scsp_rv32
+                                                      : rv_op_c_fswsp;
             } else {
                 op = rv_op_c_sdsp;
             }
