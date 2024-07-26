@@ -764,10 +764,10 @@ static RISCVException write_mie(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
-static RISCVException read_mtvec(CPURISCVState *env, int csrno,
-                                 target_ulong *val)
+#ifndef TARGET_CHERI
+static RISCVException read_mtvec(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = GET_SPECIAL_REG_ARCH(env, mtvec, mtvecc);
+    *val = env->mtvec;
     return RISCV_EXCP_NONE;
 }
 
@@ -776,12 +776,13 @@ static RISCVException write_mtvec(CPURISCVState *env, int csrno,
 {
     /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
     if ((val & 3) < 2) {
-        SET_SPECIAL_REG(env, mtvec, mtvecc, val);
+        env->mtvec = val;
     } else {
         qemu_log_mask(LOG_UNIMP, "CSR_MTVEC: reserved mode not supported\n");
     }
     return RISCV_EXCP_NONE;
 }
+#endif
 
 static RISCVException read_mcounteren(CPURISCVState *env, int csrno,
                                       target_ulong *val)
@@ -797,25 +798,26 @@ static RISCVException write_mcounteren(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+#ifndef TARGET_CHERI
 /* Machine Trap Handling */
 static RISCVException read_mscratch(CPURISCVState *env, int csrno,
                                     target_ulong *val)
 {
-    *val = GET_SPECIAL_REG_ARCH(env, mscratch, mscratchc);
+    *val = env->mscratch;
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_mscratch(CPURISCVState *env, int csrno,
                                      target_ulong val)
 {
-    SET_SPECIAL_REG(env, mscratch, mscratchc, val);
+    env->mscratch = val;
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException read_mepc(CPURISCVState *env, int csrno,
                                      target_ulong *val)
 {
-    *val = GET_SPECIAL_REG_ARCH(env, mepc, mepcc);
+    *val = env->mepc;
     // RISC-V privileged spec 3.1.15 Machine Exception Program Counter (mepc):
     // "The low bit of mepc (mepc[0]) is always zero. [...] Whenever IALIGN=32,
     // mepc[1] is masked on reads so that it appears to be 0."
@@ -826,9 +828,10 @@ static RISCVException read_mepc(CPURISCVState *env, int csrno,
 static RISCVException write_mepc(CPURISCVState *env, int csrno,
                                      target_ulong val)
 {
-    SET_SPECIAL_REG(env, mepc, mepcc, val);
+    env->mepc = val;
     return RISCV_EXCP_NONE;
 }
+#endif
 
 static RISCVException read_mcause(CPURISCVState *env, int csrno,
                                      target_ulong *val)
@@ -940,10 +943,10 @@ static int write_sie(CPURISCVState *env, int csrno, target_ulong val)
     return RISCV_EXCP_NONE;
 }
 
-static RISCVException read_stvec(CPURISCVState *env, int csrno,
-                                 target_ulong *val)
+#ifndef TARGET_CHERI
+static RISCVException read_stvec(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = GET_SPECIAL_REG_ARCH(env, stvec, stvecc);
+    *val = env->stvec;
     return RISCV_EXCP_NONE;
 }
 
@@ -952,12 +955,13 @@ static RISCVException write_stvec(CPURISCVState *env, int csrno,
 {
     /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
     if ((val & 3) < 2) {
-        SET_SPECIAL_REG(env, stvec, stvecc, val);
+        env->stvec = val;
     } else {
         qemu_log_mask(LOG_UNIMP, "CSR_STVEC: reserved mode not supported\n");
     }
     return RISCV_EXCP_NONE;
 }
+#endif
 
 static RISCVException read_scounteren(CPURISCVState *env, int csrno,
                                       target_ulong *val)
@@ -973,6 +977,7 @@ static RISCVException write_scounteren(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+#ifndef TARGET_CHERI
 /* Supervisor Trap Handling */
 static RISCVException read_sscratch(CPURISCVState *env, int csrno,
                                     target_ulong *val)
@@ -991,7 +996,7 @@ static RISCVException write_sscratch(CPURISCVState *env, int csrno,
 static RISCVException read_sepc(CPURISCVState *env, int csrno,
                                 target_ulong *val)
 {
-    *val = GET_SPECIAL_REG_ARCH(env, sepc, sepcc);
+    *val = env-> sepc;
     // RISC-V privileged spec 4.1.7 Supervisor Exception Program Counter (sepc)
     // "The low bit of sepc (sepc[0]) is always zero. [...] Whenever IALIGN=32,
     // sepc[1] is masked on reads so that it appears to be 0."
@@ -1002,9 +1007,10 @@ static RISCVException read_sepc(CPURISCVState *env, int csrno,
 static RISCVException write_sepc(CPURISCVState *env, int csrno,
                                  target_ulong val)
 {
-    SET_SPECIAL_REG(env, sepc, sepcc, val);
-    return RISCV_EXCP_NONE;
+    env->sepc = val;
+    return RISCVException;
 }
+#endif
 
 static RISCVException read_scause(CPURISCVState *env, int csrno,
                                   target_ulong *val)
@@ -1351,21 +1357,21 @@ static RISCVException write_vsstatus(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
-static int read_vstvec(CPURISCVState *env, int csrno, target_ulong *val)
+#ifndef TARGET_CHERI
+static RISCVException read_vstvec(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = GET_SPECIAL_REG_ARCH(env, vstvec, vstcc);
+    *val = env->vstvec;
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_vstvec(CPURISCVState *env, int csrno,
                                    target_ulong val)
 {
-    SET_SPECIAL_REG(env, vstvec, vstcc, val);
+    env->vstvec = val;
     return RISCV_EXCP_NONE;
 }
-
-static RISCVException read_vsscratch(CPURISCVState *env, int csrno,
-                                     target_ulong *val)
+#endif
+static RISCVException read_vsscratch(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = GET_SPECIAL_REG_ARCH(env, vsscratch, vsscratchc);
     return RISCV_EXCP_NONE;
@@ -1378,19 +1384,20 @@ static RISCVException write_vsscratch(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
-static RISCVException read_vsepc(CPURISCVState *env, int csrno,
-                                 target_ulong *val)
+#ifndef TARGET_CHERI
+static RISCVException read_vsepc(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = GET_SPECIAL_REG_ARCH(env, vsepc, vsepcc);
+    *val = env->vsepc;
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_vsepc(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
-    SET_SPECIAL_REG(env, vsepc, vsepcc, val);
+    env->vsepc = val;
     return RISCV_EXCP_NONE;
 }
+#endif
 
 static RISCVException read_vscause(CPURISCVState *env, int csrno,
                                    target_ulong *val)
@@ -2400,14 +2407,11 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MIDELEG] =             CSR_OP_RW(any, mideleg),
     [CSR_MEDELEG] =             CSR_OP_RW(any, medeleg),
     [CSR_MIE] =                 CSR_OP_RW(any, mie),
-    [CSR_MTVEC] =               CSR_OP_RW(any, mtvec),
     [CSR_MCOUNTEREN] =          CSR_OP_RW(any, mcounteren),
 
     [CSR_MSTATUSH] =            CSR_OP_RW(any32, mstatush),
 
     /* Machine Trap Handling */
-    [CSR_MSCRATCH] =            CSR_OP_RW(any, mscratch),
-    [CSR_MEPC] =                CSR_OP_RW(any, mepc),
     [CSR_MCAUSE] =              CSR_OP_RW(any, mcause),
     [CSR_MTVAL] =               CSR_OP_RW(any, mtval),
     [CSR_MIP] =                 CSR_OP_RMW(any, mip),
@@ -2415,12 +2419,9 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     /* Supervisor Trap Setup */
     [CSR_SSTATUS] =             CSR_OP_RW(smode, sstatus),
     [CSR_SIE] =                 CSR_OP_RW(smode, sie),
-    [CSR_STVEC] =               CSR_OP_RW(smode, stvec),
     [CSR_SCOUNTEREN] =          CSR_OP_RW(smode, scounteren),
 
     /* Supervisor Trap Handling */
-    [CSR_SSCRATCH] =            CSR_OP_RW(smode, sscratch),
-    [CSR_SEPC] =                CSR_OP_RW(smode, sepc),
     [CSR_SCAUSE] =              CSR_OP_RW(smode, scause),
     [CSR_STVAL] =               CSR_OP_RW(smode, stval),
     [CSR_SIP] =                 CSR_OP_RMW(smode, sip),
@@ -2446,9 +2447,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_VSSTATUS] =            CSR_OP_RW(hmode, vsstatus),
     [CSR_VSIP] =                CSR_OP_RMW(hmode, vsip),
     [CSR_VSIE] =                CSR_OP_RW(hmode, vsie),
-    [CSR_VSTVEC] =              CSR_OP_RW(hmode, vstvec),
     [CSR_VSSCRATCH] =           CSR_OP_RW(hmode, vsscratch),
-    [CSR_VSEPC] =               CSR_OP_RW(hmode, vsepc),
     [CSR_VSCAUSE] =             CSR_OP_RW(hmode, vscause),
     [CSR_VSTVAL] =              CSR_OP_RW(hmode, vstval),
     [CSR_VSATP] =               CSR_OP_RW(hmode, vsatp),
@@ -2509,6 +2508,17 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MHPMEVENT3    ... CSR_MHPMEVENT31] =     CSR_OP_FN_R(any, read_zero, "mhpmeventN"),
     [CSR_HPMCOUNTER3H  ... CSR_HPMCOUNTER31H] =   CSR_OP_FN_R(ctr32, read_zero, "hpmcounterNh"),
     [CSR_MHPMCOUNTER3H ... CSR_MHPMCOUNTER31H] =  CSR_OP_FN_R(any32, read_zero, "mhpmcounterNh"),
+
+#if !defined(TARGET_CHERI)
+    [CSR_MSCRATCH] =            CSR_OP_RW(any, mscratch),
+    [CSR_MTVEC] =               CSR_OP_RW(any, mtvec),
+    [CSR_STVEC] =               CSR_OP_RW(smode, stvec),
+    [CSR_MEPC] =                CSR_OP_RW(any, mepc),
+    [CSR_SEPC] =                CSR_OP_RW(smode, sepc),
+    [CSR_SSCRATCH] =            CSR_OP_RW(smode, sscratch),
+    [CSR_VSEPC] =               CSR_OP_RW(hmode, vsepc),
+    [CSR_VSTVEC] =              CSR_OP_RW(hmode, vstvec),
+#endif /* !TARGET_CHERI */
 #endif /* !CONFIG_USER_ONLY */
 };
 
