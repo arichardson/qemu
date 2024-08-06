@@ -818,6 +818,9 @@ static void riscv_cpu_reset(DeviceState *dev)
     null_capability(&env->stidc);
     null_capability(&env->vstidc);
     null_capability(&env->mtidc);
+
+    null_capability(&env->jvtc);
+
 #ifdef TARGET_CHERI_RISCV_V9
     null_capability(&env->mtdc);
     null_capability(&env->stdc);
