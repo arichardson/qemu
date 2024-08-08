@@ -466,6 +466,7 @@ struct RISCVCPU {
         bool ext_cheri_v9; /* Temporary flag to support new semantics. */
 #elif defined(TARGET_CHERI_RISCV_STD)
         bool ext_cheri_purecap;
+        bool scmode_flip;
 #endif
         char *priv_spec;
         char *user_spec;
