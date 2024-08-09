@@ -941,13 +941,13 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
         result.cr_tag = 0;
     }
 
-    if (!valid_ap(cbp->cr_arch_perm)) {
+    if (cap_has_invalid_perms_encoding(cbp)) {
         /*
          * "If AP and M-bit field in cs1 could not have been produced by
          * acperm then clear all AP permissions and the M-bit."
          */
         perms = 0;
-        result.cr_m = 0;
+        cap_set_exec_mode(&result, 0);
     }
     else {
         /* Enforce the restrictions as per the bakewell specification. */
