@@ -959,13 +959,16 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
         perms &= ~CAP_AP_C;
     }
 
-    /*
-     * As of Jun 2024, we skip common rule 3 is about the M bit.
-     * Our policy is that acperm does not modify M.
-     *
-     * TODO: Review this and handle M if the info in the bakewell
-     * specification is sufficient for implementing this.
-     */
+        /*
+         * "M-bit cannot be set without X-permission being set"
+         *
+         * If a capability grants no execution permission, M is effectively
+         * undefined and must be set to 0. This is unrelated to the values
+         * for capability/integer pointer mode.
+         */
+        if (!(perms & CAP_AP_X)) {
+            cap_set_exec_mode(&result, 0);
+        }
 
 #if CAP_CC(ADDR_WIDTH) == 32
     /*
