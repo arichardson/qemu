@@ -932,12 +932,6 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
 
     cap_register_t result = *cbp;
 
-    /* see the comment about capmode in the gcperm helper */
-    if (!cheri_in_capmode(env)) {
-        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
-        return;
-    }
-
     if (!cap_is_unsealed(cbp)) {
         result.cr_tag = 0;
     }
