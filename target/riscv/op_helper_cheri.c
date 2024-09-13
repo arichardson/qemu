@@ -124,8 +124,8 @@ struct SCRInfo {
 void riscv_log_instr_scr_changed(CPURISCVState *env, int scrno)
 {
     if (qemu_log_instr_enabled(env)) {
-        qemu_log_instr_cap(env, scr_info[scrno].name,
-                           riscv_get_scr(env, scrno));
+        qemu_log_instr_cap(env, scr_info[scrno].name, riscv_get_scr(env, scrno),
+                           scrno, LRI_CSR_ACCESS);
     }
 }
 #endif
@@ -302,7 +302,7 @@ void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         } else {
             cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs, rd);
             *dest = csr_cap;
-            cheri_log_instr_changed_gp_capreg(env, rd, dest);
+            cheri_log_instr_changed_gp_capreg(env, rd, dest, LRI_GPR_ACCESS);
         }
     }
 }
@@ -413,7 +413,8 @@ void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
             /* fallthrough */
         default:
             *scr = new_val;
-            cheri_log_instr_changed_capreg(env, scr_info[index].name, scr);
+            cheri_log_instr_changed_capreg(env, scr_info[index].name, scr,
+                                           index, 0);
         }
     }
 }
@@ -544,10 +545,10 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
     env->load_val = cursor;
     env->load_pesbt = pesbt;
     env->load_tag = tag;
-    log_changed_special_reg(env, "load_res", env->load_res);
-    log_changed_special_reg(env, "load_val", env->load_val);
-    log_changed_special_reg(env, "load_pesbt", env->load_pesbt);
-    log_changed_special_reg(env, "load_tag", (target_ulong)env->load_tag);
+    // log_changed_special_reg(env, "load_res", env->load_res);
+    // log_changed_special_reg(env, "load_val", env->load_val);
+    // log_changed_special_reg(env, "load_pesbt", env->load_pesbt);
+    // log_changed_special_reg(env, "load_tag", (target_ulong)env->load_tag);
     update_compressed_capreg(env, dest_reg, pesbt, tag, cursor);
 }
 
@@ -616,7 +617,7 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
     // an SC to any address, in between an LR and SC pair.
     // We do this regardless of success/failure.
     env->load_res = -1;
-    log_changed_special_reg(env, "load_res", env->load_res);
+    // log_changed_special_reg(env, "load_res", env->load_res);
     if (addr != expected_addr) {
         goto sc_failed;
     }
