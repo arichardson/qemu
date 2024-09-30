@@ -489,13 +489,6 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
     return true;
 }
 
-#ifdef TARGET_CHERI
-static bool is_cap_csr(int csrno)
-{
-    return get_csr_cap_info(csrno) != NULL;
-}
-#endif
-
 static bool do_csr_post(DisasContext *ctx)
 {
     /* We may have changed important cpu state -- exit to main loop. */
