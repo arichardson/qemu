@@ -57,6 +57,13 @@ void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno)
 }
 #endif
 
+#ifdef TARGET_CHERI
+bool is_cap_csr(int csrno)
+{
+    return get_csr_cap_info(csrno) != NULL;
+}
+#endif
+
 /* CSR function table public API */
 void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops)
 {
