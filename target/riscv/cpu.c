@@ -1101,6 +1101,7 @@ static Property riscv_cpu_properties[] = {
 #ifdef TARGET_CHERI
     DEFINE_PROP_BOOL("Xcheri_purecap", RISCVCPU, cfg.ext_cheri_purecap, false),
     DEFINE_PROP_BOOL("scmode_flip", RISCVCPU, cfg.scmode_flip, true),
+    DEFINE_PROP_BOOL("cheri_v090", RISCVCPU, cfg.cheri_v090, false),
 #endif
     DEFINE_PROP_STRING("priv_spec", RISCVCPU, cfg.priv_spec),
 
