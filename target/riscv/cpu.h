@@ -456,6 +456,7 @@ struct RISCVCPU {
 #ifdef TARGET_CHERI
         bool ext_cheri_purecap;
         bool scmode_flip;
+        bool cheri_v090;
 #endif
         char *priv_spec;
         char *user_spec;
