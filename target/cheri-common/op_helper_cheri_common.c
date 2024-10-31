@@ -928,14 +928,27 @@ cincoffset_impl(CPUArchState *env, uint32_t cd, uint32_t cb, target_ulong rt,
 }
 
 #ifdef TARGET_CHERI_RISCV_STD
+
+/* clear _cap_bit in _cap unless _mask_bit in _mask is set */
+#define MASK_CLR_CAP_PERM(_mask, _mask_bit, _cap, _cap_bit) \
+do { \
+    if(!((_mask) & (1 << (_mask_bit)))) { \
+        (_cap).cr_arch_perm &= ~(_cap_bit); \
+    } \
+} while (0)
+
 void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
-                              target_ulong rs1))
+                              target_ulong rs2))
 {
     const cap_register_t *cbp = get_readonly_capreg(env, cs1);
-    /* We do not touch the M bit here, don't copy it into perms. */
-    uint32_t perms = cap_get_all_perms(cbp);
-
     cap_register_t result = *cbp;
+    uint32_t perms = cap_get_all_perms(&result);
+
+    /*
+     * We have to calculate bitwise AND of cs1's AP field and rs2. Bits that
+     * are not defined in rs2 cannot be set in the result.
+     */
+    perms &= rs2;
 
     if (!cap_is_unsealed(cbp)) {
         result.cr_tag = 0;
@@ -950,7 +963,7 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
         cap_set_exec_mode(&result, 0);
     }
     else {
-        /* Enforce the restrictions as per the bakewell specification. */
+        /* Enforce the restrictions as per the risc-v cheri specification. */
 
         /* "Clear ASR-permission unless X-permission is set" */
         if (!(perms & CAP_AP_X)) {
