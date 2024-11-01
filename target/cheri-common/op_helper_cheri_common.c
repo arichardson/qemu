@@ -940,8 +940,14 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
     uint32_t perms = cap_get_all_perms(&result);
 
     /*
-     * We have to calculate bitwise AND of cs1's AP field and rs2. Bits that
-     * are not defined in rs2 cannot be set in the result.
+     * At this point, we cleared all AP bits in the result capability that are
+     * not controlled by the acperm mask in rs2. The idea was that those bits
+     * are effectively masked out by 0 bits in rs2.
+     *
+     * This caused failures in the RV32 newlib testsuite. If the input
+     * capability has AP bits set that we don't understand, we must not clear
+     * those bits implicitly or we might end up with an set permissions that
+     * CAP_cc(m_ap_compress) considers as invalid.
      */
     perms &= rs2;
 
