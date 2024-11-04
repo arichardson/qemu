@@ -1407,6 +1407,14 @@ cheri_tag_prot_clear_or_trap(CPUArchState *env, target_ulong va,
     return tag;
 }
 
+/*
+ * source must be a fully decompressed capability
+ *
+ * (source is the capability that contains the load address and that
+ * authorizes the memory access. As per the spec, it must point to a
+ * register. We access capability registers via struct GPCapRegs, which
+ * stores decompressed capabilities.)
+ */
 static void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
                                 const cap_register_t *source)
 {
@@ -1418,6 +1426,29 @@ static void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
         *pesbt &=
             ~cap_encode_perms(CAP_PERM_MUTABLE_LOAD | CAP_PERM_STORE_LOCAL |
                               CAP_PERM_STORE_CAP | CAP_PERM_STORE);
+    }
+#elif CHERI_FMT_RISCV
+    if (!cap_has_perms(source, CAP_AP_LM)) {
+        /*
+         * Create a temporary capability for checking and updating permissions,
+         * its address is not used.
+         * All capabilities in the system use the same number of lvbits, we
+         * can copy the value from any other capability.
+         */
+        cap_register_t tmp = *source;
+        tmp.cr_pesbt = *pesbt;
+
+        /*
+         * The spec says "Capabilities that are sealed or untagged do not have
+         * their permissions changed."
+         * The tag has already been checked by the caller.
+         */
+        if (!cap_is_unsealed(&tmp)) {
+            return;
+        }
+        /* Update the modified set to be in line with the acperm rules again. */
+        sanitize_m_ap(&tmp, cap_get_all_perms(&tmp) & ~(CAP_AP_LM | CAP_AP_W));
+        *pesbt = tmp.cr_pesbt;
     }
 #endif
 }
