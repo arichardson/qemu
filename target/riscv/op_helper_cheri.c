@@ -391,13 +391,13 @@ void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
         switch (index) {
         case CheriSCR_STCC:
         case CheriSCR_MTCC: {
-            target_ulong new_tvec = SCR_TO_PROGRAM_COUNTER(env, &new_val);
+            target_ulong new_tvec = cap_get_cursor(&new_val);
             target_ulong new_mode = new_tvec & 3;
             /* The low two bits encode the mode, but only 0 and 1 are valid. */
             if (new_mode > 1) {
                 /* Invalid mode, keep the old one. */
                 new_tvec &= ~(target_ulong)3;
-                new_tvec |= SCR_TO_PROGRAM_COUNTER(env, scr) & 3;
+                new_tvec |= cap_get_cursor(scr) & 3;
             }
             *scr = new_val;
             SCR_SET_PROGRAM_COUNTER(env, scr, scr_info[index].name, new_tvec);
