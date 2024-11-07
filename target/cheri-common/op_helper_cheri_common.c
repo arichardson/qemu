@@ -960,55 +960,12 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
          * "If AP and M-bit field in cs1 could not have been produced by
          * acperm then clear all AP permissions and the M-bit."
          */
-        perms = 0;
         cap_set_exec_mode(&result, 0);
+        cap_set_perms(&result, perms & CAP_CC(PERM_SW_ALL));
     }
     else {
-        /* Enforce the restrictions as per the risc-v cheri specification. */
-
-        /* "Clear ASR-permission unless X-permission is set" */
-        if (!(perms & CAP_AP_X)) {
-            perms &= ~CAP_AP_ASR;
-        }
-
-        /* "Clear C-permission unless R-permission or W-permission are set" */
-        if (!(perms & (CAP_AP_R|CAP_AP_W))) {
-            perms &= ~CAP_AP_C;
-        }
-
-        /*
-         * "M-bit cannot be set without X-permission being set"
-         *
-         * If a capability grants no execution permission, M is effectively
-         * undefined and must be set to 0. This is unrelated to the values
-         * for capability/integer pointer mode.
-         */
-        if (!(perms & CAP_AP_X)) {
-            cap_set_exec_mode(&result, 0);
-        }
-
-#if CAP_CC(ADDR_WIDTH) == 32
-        /* "Clear ASR-permission unless all other permissions are set." */
-        if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) !=
-                (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) {
-            perms &= ~CAP_AP_ASR;
-        }
-        /* "Clear C-permission and X-permission if R-permission is not set" */
-        if (!(perms & CAP_AP_R)) {
-            perms &= ~(CAP_AP_X | CAP_AP_C);
-        }
-        /*
-         * "Clear X-permission if X-permission and R-permission are set, but
-         * C-permission and W-permission are not set"
-         */
-        if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
-                (CAP_AP_X | CAP_AP_R)) {
-            perms &= ~CAP_AP_X;
-        }
-#endif
+        sanitize_m_ap(&result, perms);
     }
-
-    cap_set_perms(&result, perms);
 
     update_capreg(env, cd, &result);
 }
