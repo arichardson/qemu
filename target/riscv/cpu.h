@@ -208,11 +208,6 @@ struct CPURISCVState {
 #endif
 
 #ifdef TARGET_CHERI
-    cap_register_t utidc; // SCR 3 User thread identifier cap. (UTIDC)
-#endif
-
-#ifdef TARGET_CHERI
-    cap_register_t stidc;     // SCR 11 Supervisor thread identifier cap. (STIDC)
     cap_register_t stdc;      // SCR 13 Supervisor trap data cap. (STDC)
     cap_register_t sscratchc; // SCR 14 Supervisor scratch cap. (SScratchC)
     cap_register_t sepcc;     // SCR 15 Supervisor exception PC cap. (SEPCC)
@@ -224,7 +219,6 @@ struct CPURISCVState {
     target_ulong scause;
 
 #ifdef TARGET_CHERI
-    cap_register_t mtidc;     // SCR 27 Machine thread identifier cap. (MTIDC)
     cap_register_t mtdc;      // SCR 29 Machine trap data cap. (MTDC)
     cap_register_t mscratchc; // SCR 30 Machine scratch cap. (MScratchC)
     cap_register_t mepcc;     // Machine exception PC cap. (MEPCC)
@@ -253,7 +247,6 @@ struct CPURISCVState {
     cap_register_t vstdc;
     cap_register_t vsscratchc;
     cap_register_t vsepcc;
-    cap_register_t vstidc;
 #else
     target_ulong vstvec;
     target_ulong vsepc;
@@ -305,7 +298,22 @@ struct CPURISCVState {
     cap_register_t dscratch1c;
     cap_register_t dpcc;
     cap_register_t dddc;
+
+    /* zstid registers */
+    cap_register_t mtidc;
+    cap_register_t stidc;
+    cap_register_t utidc;
+    cap_register_t vstidc;
+    cap_register_t stidc_hs;
+#else
+    /* zstid registers in integer mode */
+    target_ulong mtid;
+    target_ulong stid;
+    target_ulong utid;
+    target_ulong vstid;
+    target_ulong stid_hs;
 #endif
+
     /* temporary htif regs */
     uint64_t mfromhost;
     uint64_t mtohost;
