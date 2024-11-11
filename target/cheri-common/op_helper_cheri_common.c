@@ -1924,9 +1924,11 @@ target_ulong CHERI_HELPER_IMPL(scss(CPUArchState *env, uint32_t cs1,
         return 0;
     }
 
-    /*
-     * Return 0 if the permissions are not identical
-     */
+    /* Explicitly verify that the permissions are valid. */
+    if (cap_has_invalid_perms_encoding(cs1p) || cap_has_invalid_perms_encoding(cs2p)) {
+        return 0;
+    }
+    /* Return 0 if the permissions are not identical */
     if ((cap_get_all_perms(cs2p) & cap_get_all_perms(cs1p)) !=
         cap_get_all_perms(cs2p)) {
         return 0;
