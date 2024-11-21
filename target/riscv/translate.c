@@ -850,7 +850,6 @@ static bool trans_ ## instr(DisasContext *ctx, arg_ ## instr *a) \
 TRANS_STUB(lc)
 TRANS_STUB(sc)
 TRANS_STUB(caddi)
-TRANS_STUB(lr_c)
 TRANS_STUB(sc_c)
 TRANS_STUB(scbndsi)
 #endif
