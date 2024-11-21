@@ -530,16 +530,9 @@ static int ex_rvc_shifti(DisasContext *ctx, int imm)
     return imm ? imm : 64;
 }
 
-static bool __attribute__((unused)) pred_cheri_v090(DisasContext *ctx)
+static bool pred_rv64(DisasContext *ctx)
 {
-#ifdef TARGET_CHERI
-    CPUState *cpu_state = ctx->cs;
-    CPURISCVState *env = cpu_state ->env_ptr;
-    RISCVCPU *cpu = env_archcpu(env);
-    return cpu->cfg.cheri_v090;
-#else
-    return false;
-#endif
+    return (get_xl(ctx) != MXL_RV32);
 }
 
 static bool pred_capmode(DisasContext *ctx)
