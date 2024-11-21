@@ -20,11 +20,11 @@ decodetree_w_cheri_deps = generator(
   depends: fake_dep, # Workaround for bad dependency tracking
 )
 gen32_cheri = [
-  decodetree.process('insn16.decode', extra_args: ['--static-decode=decode_insn16', '--insnwidth=16']),
+  decodetree_w_cheri_deps.process('insn16.decode', extra_args: ['--static-decode=decode_insn16', '--insnwidth=16']),
   decodetree_w_cheri_deps.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', dir / 'insn32-cheri-32.decode', '--static-decode=decode_insn32']),
 ]
 gen64_cheri = [
-  decodetree.process('insn16.decode', extra_args: ['--static-decode=decode_insn16', '--insnwidth=16']),
+  decodetree_w_cheri_deps.process('insn16.decode', extra_args: ['--static-decode=decode_insn16', '--insnwidth=16']),
   decodetree_w_cheri_deps.process('insn32.decode', extra_args: [dir / 'insn32-cheri.decode', dir / 'insn32-cheri-64.decode', '--static-decode=decode_insn32']),
 ]
 
