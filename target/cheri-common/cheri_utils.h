@@ -432,64 +432,114 @@ static inline bool cap_has_invalid_perms_encoding(const cap_register_t *c)
 }
 
 
-/*
- * Check if cr_arch_perm contains a valid set of bakewell architectural
- * permissions (AP). A set is valid if it could have been produced by acperm.
- */
-static inline bool valid_ap(uint8_t cr_arch_perm)
-{
-#ifdef TARGET_CHERI_RISCV_STD
-    /* "ASR permission cannot be set without X permission" */
-    if ((cr_arch_perm & (CAP_AP_ASR | CAP_AP_X)) == CAP_AP_ASR) {
-        return false;
-    }
-    /*
-     * "C-permission cannot be set without at least one of R-permission or
-     * W-permission being set."
-     */
-    if ((cr_arch_perm & (CAP_AP_C | CAP_AP_R | CAP_AP_W)) == CAP_AP_C) {
-        return false;
-    }
+#define PERM_RULE(bit, cond) \
+do { \
+     if (perms & (bit)) { \
+        if (!(cond)) { \
+            perms &= ~(bit); \
+            updated = true; \
+        } \
+    } \
+} while (0)
 
-    /*
-     * We do not check that "M-bit cannot be set without X-permission being
-     * set". The handling of the M-bit depends on the specific instruction
-     * (M might be filtered out from cr_arch_perm, caller might have checked M,
-     * M might be updated based on X, ...)
-     */
+#ifdef TARGET_CHERI_RISCV_STD
+
+/*
+ * Fix up a set of (M, AP) to be in line with the rules for the acperm
+ * instruction, resulting in a set that could have been created by acperm.
+ * Return true if the input set had to be modified for this or false if
+ * the input set is already compliant to the acperm rules.
+ */
+static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ulong perms)
+{
+    bool updated = false;
+    RISCVCPU *cpu = env_archcpu(env);
+    bool cheri_v090 = cpu->cfg.cheri_v090;
+
+  /*
+   * The code below tries to follow the rules in the risc-v cheri
+   * specification as closely as possible. This should make it easier
+   * to find bugs.
+   */
 
 #if CAP_CC(ADDR_WIDTH) == 32
-    /* ASR requires that at least one other permission be set. */
-    if ((cr_arch_perm &
-          (CAP_AP_ASR | CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X)) == CAP_AP_ASR) {
-        return false;
-    }
-    /* If R is not set, C and X must not be set either. */
-    if (!(cr_arch_perm & CAP_AP_R)) {
-        if (cr_arch_perm & (CAP_AP_C | CAP_AP_X)) {
-            return false;
+  {
+        uint16_t non_asr_perms = CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X;
+        if (cheri_v090) {
+            /* as of Nov 2024, EL and SL permissions are not supported */
+            non_asr_perms |= CAP_AP_LM;
         }
-    }
-    /* It's an error if X and R are set, but W and C aren't. */
-    if ((cr_arch_perm & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
-            (CAP_AP_X | CAP_AP_R)) {
-        return false;
+
+        /* rule 1 */
+        PERM_RULE(CAP_AP_ASR,
+                (cap->cr_arch_perm & non_asr_perms) == non_asr_perms);
     }
 #endif
+
+    /* rule 2 */
+    PERM_RULE(CAP_AP_C, perms & (CAP_AP_R | CAP_AP_W));
+
+#if CAP_CC(ADDR_WIDTH) == 32
+    /* rule 3 */
+    PERM_RULE(CAP_AP_C, perms & CAP_AP_R);
+
+    /* rule 4 */
+    PERM_RULE(CAP_AP_X, perms & CAP_AP_R);
+
+    /* rule 5 */
+    if (cheri_v090) {
+        PERM_RULE(CAP_AP_W, !(perms & CAP_AP_C) ||
+                (perms & CAP_AP_LM));
+    }
+
+    /* rule 6 */
+    PERM_RULE(CAP_AP_X, perms & (CAP_AP_W | CAP_AP_C));
 #endif
-    return true;
-}
 
-/**
- * Returns true if the permissions encoding in @p c could not have been
- * produced by a valid ACPERM sequence.
- */
-static inline bool cap_has_invalid_perms_encoding(const cap_register_t *c)
-{
-    /* TODO: implement this for the RISC-V standard. */
-    return !valid_ap(cap_get_all_perms(c));
-}
+    /* rule 7 is about EL, which is unsupported */
+    /* rule 8 is about EL (for RV32) */
 
+    /* rule 9 */
+    if (cheri_v090) {
+        PERM_RULE(CAP_AP_LM, (perms & (CAP_AP_C | CAP_AP_R)) ==
+                             (CAP_AP_C | CAP_AP_R));
+    }
+
+#if CAP_CC(ADDR_WIDTH) == 32
+    /* rule 10 */
+    if (cheri_v090) {
+        PERM_RULE(CAP_AP_LM, perms & (CAP_AP_W | CAP_AP_EL));
+    }
+#endif
+
+    /* rule 11 is about SL, which is unsupported */
+    /* rule 12 is about SL (for RV32) */
+
+#if CAP_CC(ADDR_WIDTH) == 32
+
+    /* rule 13 */
+    if (cheri_v090) {
+        uint16_t cmp_val = perms &
+            (CAP_AP_C | CAP_AP_LM | CAP_AP_EL | CAP_AP_SL);
+        PERM_RULE(CAP_AP_X, (cmp_val == 0) ||
+                (cmp_val == (CAP_AP_C | CAP_AP_LM | CAP_AP_EL | CAP_AP_SL)));
+    }
+#endif
+
+  /* rule 14 */
+  PERM_RULE(CAP_AP_ASR, perms & CAP_AP_X);
+
+  /* rule 15 */
+  if (cap_get_exec_mode(cap) == 1) {
+    if (!(perms & CAP_AP_X)) {
+      cap_set_exec_mode(cap, 0);
+      updated = true;
+    }
+  }
+
+  return updated;
+}
+#endif
 
 // Check if num_bytes bytes at addr can be read using capability c
 static inline bool cap_is_in_bounds(const cap_register_t *c, target_ulong addr,
