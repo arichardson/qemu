@@ -432,6 +432,7 @@ static inline bool cap_has_invalid_perms_encoding(const cap_register_t *c)
 }
 
 
+#ifdef TARGET_CHERI_RISCV_STD
 #define PERM_RULE(bit, cond) \
 do { \
      if (perms & (bit)) { \
@@ -441,8 +442,6 @@ do { \
         } \
     } \
 } while (0)
-
-#ifdef TARGET_CHERI_RISCV_STD
 
 /*
  * Fix up a set of (M, AP) to be in line with the rules for the acperm
@@ -463,8 +462,8 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ul
    */
 
 #if CAP_CC(ADDR_WIDTH) == 32
-  {
-        uint16_t non_asr_perms = CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X;
+    {
+        target_ulong non_asr_perms = CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X;
         if (cheri_v090) {
             /* as of Nov 2024, EL and SL permissions are not supported */
             non_asr_perms |= CAP_AP_LM;
@@ -472,7 +471,7 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ul
 
         /* rule 1 */
         PERM_RULE(CAP_AP_ASR,
-                (cap->cr_arch_perm & non_asr_perms) == non_asr_perms);
+                (perms & non_asr_perms) == non_asr_perms);
     }
 #endif
 
@@ -502,7 +501,7 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ul
     /* rule 9 */
     if (cheri_v090) {
         PERM_RULE(CAP_AP_LM, (perms & (CAP_AP_C | CAP_AP_R)) ==
-                             (CAP_AP_C | CAP_AP_R));
+                (CAP_AP_C | CAP_AP_R));
     }
 
 #if CAP_CC(ADDR_WIDTH) == 32
@@ -519,25 +518,25 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ul
 
     /* rule 13 */
     if (cheri_v090) {
-        uint16_t cmp_val = perms &
+        target_ulong cmp_val = perms &
             (CAP_AP_C | CAP_AP_LM | CAP_AP_EL | CAP_AP_SL);
         PERM_RULE(CAP_AP_X, (cmp_val == 0) ||
                 (cmp_val == (CAP_AP_C | CAP_AP_LM | CAP_AP_EL | CAP_AP_SL)));
     }
 #endif
 
-  /* rule 14 */
-  PERM_RULE(CAP_AP_ASR, perms & CAP_AP_X);
+    /* rule 14 */
+    PERM_RULE(CAP_AP_ASR, perms & CAP_AP_X);
 
-  /* rule 15 */
-  if (cap_get_exec_mode(cap) == 1) {
-    if (!(perms & CAP_AP_X)) {
-      cap_set_exec_mode(cap, 0);
-      updated = true;
+    /* rule 15 */
+    if (cap_get_exec_mode(cap) == 1) {
+        if (!(perms & CAP_AP_X)) {
+            cap_set_exec_mode(cap, 0);
+            updated = true;
+        }
     }
-  }
-
-  return updated;
+    cap_set_perms(cap, perms);
+    return updated;
 }
 #endif
 
