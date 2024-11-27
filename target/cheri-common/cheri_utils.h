@@ -287,152 +287,6 @@ static inline void cap_make_sealed_entry(cap_register_t *c)
 }
 
 #ifdef TARGET_CHERI_RISCV_STD
-/*
- * Check if cr_m, cr_arch_perm contain a valid set of risc-v cheri
- * mode and architectural permissions that could have been produced
- * by acperm.
- */
-static inline bool valid_m_ap(uint8_t cr_m, uint8_t cr_arch_perm)
-{
-    /* "ASR permission cannot be set without X permission" */
-    if ((cr_arch_perm & (CAP_AP_ASR | CAP_AP_X)) == CAP_AP_ASR) {
-        return false;
-    }
-    /*
-     * "C-permission cannot be set without at least one of R-permission or
-     * W-permission being set."
-     */
-    if ((cr_arch_perm & (CAP_AP_C | CAP_AP_R | CAP_AP_W)) == CAP_AP_C) {
-        return false;
-    }
-
-    /*
-     * We were considering a check for M=1 (int ptr mode) in purecap mode.
-     * This check would be incorrect. acperm could produce a capability with
-     * M=1 in purecap mode.
-     *
-     * acperm does not require that cs1 be tagged. If in purecap mode, we pass
-     * cs1 with tag=0, M=1, AP=X and rs2 = 0x1F to acperm, cd will have M=1.
-     * (cd's tag would still be cleared, cbld would refuse to tag such a
-     * capability).
-     */
-
-    /*
-     * Please see the comment in CHERI_HELPER_IMPL(acperm).
-     * In a non-executable capability, M is undefined and must be set to 0.
-     */
-    if (cr_m && !(cr_arch_perm & CAP_AP_X)) {
-        return false;
-    }
-
-    /* LM, EL, SL require C */
-    if (cr_arch_perm & (CAP_AP_LM | CAP_AP_EL | CAP_AP_SL)) {
-        if (!(cr_arch_perm & CAP_AP_C)) {
-            return false;
-        }
-    }
-
-#if CAP_CC(ADDR_WIDTH) == 32
-    /* ASR requires that all one other permissions be set. */
-    if (cr_arch_perm & CAP_AP_ASR) {
-        if ((cr_arch_perm & (CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X)) !=
-                (CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X)) {
-            return false;
-        }
-    }
-    /* If R is not set, C and X must not be set either. */
-    if (!(cr_arch_perm & CAP_AP_R)) {
-        if (cr_arch_perm & (CAP_AP_C | CAP_AP_X)) {
-            return false;
-        }
-    }
-    /* It's an error if X and R are set, but W and C aren't. */
-    if ((cr_arch_perm & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
-            (CAP_AP_X | CAP_AP_R)) {
-        return false;
-    }
-#endif
-    return true;
-}
-
-/*
- * update cap's M and AP to a valid set that could be produced by acperm
- *
- * TODO: rewrite this function to follow the "acperm rules table" in the
- * latest version of the spec (end of Nov 2024)
- */
-static inline void sanitize_m_ap(cap_register_t *cap, target_ulong perms)
-{
-    /* "Clear ASR-permission unless X-permission is set" */
-    if (!(perms & CAP_AP_X)) {
-        perms &= ~CAP_AP_ASR;
-        /* TODO: ASR might already be 0 - then this is no change */
-    }
-
-    /* "Clear C-permission unless R-permission or W-permission are set" */
-    if (!(perms & (CAP_AP_R|CAP_AP_W))) {
-        perms &= ~CAP_AP_C;
-    }
-
-    /*
-     * "M-bit cannot be set without X-permission being set"
-     *
-     * If a capability grants no execution permission, M is effectively
-     * undefined and must be set to 0. This is unrelated to the values
-     * for capability/integer pointer mode.
-     */
-    if (!(perms & CAP_AP_X)) {
-        cap_set_exec_mode(cap, 0);
-    }
-
-    /*
-     * "Clear LM-permission unless C-permission is set."
-     * "Zero SL-permission unless C-permission is set."
-     * "Zero EL-permission unless C-permission is set."
-     */
-    if (!(perms & CAP_AP_C)) {
-        perms &= ~(CAP_AP_SL | CAP_AP_EL | CAP_AP_LM);
-    }
-
-#if CAP_CC(ADDR_WIDTH) == 32
-    /* "Clear ASR-permission unless all other permissions are set." */
-    if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) !=
-            (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) {
-        perms &= ~CAP_AP_ASR;
-    }
-    /* "Clear C-permission and X-permission if R-permission is not set" */
-    if (!(perms & CAP_AP_R)) {
-        perms &= ~(CAP_AP_X | CAP_AP_C);
-    }
-    /*
-     * "Clear X-permission if X-permission and R-permission are set, but
-     * C-permission and W-permission are not set"
-     */
-    if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
-            (CAP_AP_X | CAP_AP_R)) {
-        perms &= ~CAP_AP_X;
-    }
-#endif
-    cap_set_perms(cap, perms);
-}
-#endif
-
-/**
- * Returns true if the permissions encoding in @p c could not have been
- * produced by a valid ACPERM sequence.
- */
-static inline bool cap_has_invalid_perms_encoding(const cap_register_t *c)
-{
-#ifdef TARGET_CHERI_RISCV_STD
-    /* TODO: implement this for the RISC-V standard. */
-    return !valid_m_ap(cap_get_exec_mode(c), cap_get_all_perms(c));
-#else
-    return false;
-#endif
-}
-
-
-#ifdef TARGET_CHERI_RISCV_STD
 #define PERM_RULE(bit, cond) \
 do { \
      if (perms & (bit)) { \
@@ -539,6 +393,22 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ul
     return updated;
 }
 #endif
+
+/**
+ * Returns true if the permissions encoding in @p c could not have been
+ * produced by a valid ACPERM sequence.
+ */
+static inline bool cap_has_invalid_perms_encoding(__attribute__((unused))
+                                                  CPUArchState *env,
+                                                  const cap_register_t *c)
+{
+#ifdef TARGET_CHERI_RISCV_STD
+    cap_register_t tmp = *c;
+    return fix_up_m_ap(env, &tmp, cap_get_all_perms(c));
+#else
+    return false;
+#endif
+}
 
 // Check if num_bytes bytes at addr can be read using capability c
 static inline bool cap_is_in_bounds(const cap_register_t *c, target_ulong addr,
