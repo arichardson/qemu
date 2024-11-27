@@ -430,12 +430,12 @@ static inline bool cap_has_invalid_perms_encoding(const cap_register_t *c)
 #endif
 }
 
-
+#ifdef TARGET_RISCV
 #define PERM_RULE(bit, cond) \
 do { \
-     if (cap->cr_arch_perm & (bit)) { \
+     if (perms & (bit)) { \
         if (!(cond)) { \
-            cap->cr_arch_perm &= ~(bit); \
+            perms &= ~(bit); \
             updated = true; \
         } \
     } \
@@ -447,7 +447,7 @@ do { \
  * Return true if the input set had to be modified for this or false if
  * the input set is already compliant to the acperm rules.
  */
-static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap)
+static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ulong perms)
 {
     bool cheri_v090 = false;
     bool updated = false;
@@ -465,7 +465,7 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap)
 
 #if CAP_CC(ADDR_WIDTH) == 32
     {
-        uint16_t non_asr_perms = CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X;
+        target_ulong non_asr_perms = CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X;
         if (cheri_v090) {
             /* as of Nov 2024, EL and SL permissions are not supported */
             non_asr_perms |= CAP_AP_LM;
@@ -473,28 +473,28 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap)
 
         /* rule 1 */
         PERM_RULE(CAP_AP_ASR,
-                (cap->cr_arch_perm & non_asr_perms) == non_asr_perms);
+                (perms & non_asr_perms) == non_asr_perms);
     }
 #endif
 
     /* rule 2 */
-    PERM_RULE(CAP_AP_C, cap->cr_arch_perm & (CAP_AP_R | CAP_AP_W));
+    PERM_RULE(CAP_AP_C, perms & (CAP_AP_R | CAP_AP_W));
 
 #if CAP_CC(ADDR_WIDTH) == 32
     /* rule 3 */
-    PERM_RULE(CAP_AP_C, cap->cr_arch_perm & CAP_AP_R);
+    PERM_RULE(CAP_AP_C, perms & CAP_AP_R);
 
     /* rule 4 */
-    PERM_RULE(CAP_AP_X, cap->cr_arch_perm & CAP_AP_R);
+    PERM_RULE(CAP_AP_X, perms & CAP_AP_R);
 
     /* rule 5 */
     if (cheri_v090) {
-        PERM_RULE(CAP_AP_W, !(cap->cr_arch_perm & CAP_AP_C) ||
-                (cap->cr_arch_perm & CAP_AP_LM));
+        PERM_RULE(CAP_AP_W, !(perms & CAP_AP_C) ||
+                (perms & CAP_AP_LM));
     }
 
     /* rule 6 */
-    PERM_RULE(CAP_AP_X, cap->cr_arch_perm & (CAP_AP_W | CAP_AP_C));
+    PERM_RULE(CAP_AP_X, perms & (CAP_AP_W | CAP_AP_C));
 #endif
 
     /* rule 7 is about EL, which is unsupported */
@@ -502,14 +502,14 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap)
 
     /* rule 9 */
     if (cheri_v090) {
-        PERM_RULE(CAP_AP_LM, (cap->cr_arch_perm & (CAP_AP_C | CAP_AP_R)) ==
+        PERM_RULE(CAP_AP_LM, (perms & (CAP_AP_C | CAP_AP_R)) ==
                 (CAP_AP_C | CAP_AP_R));
     }
 
 #if CAP_CC(ADDR_WIDTH) == 32
     /* rule 10 */
     if (cheri_v090) {
-        PERM_RULE(CAP_AP_LM, cap->cr_arch_perm & (CAP_AP_W | CAP_AP_EL));
+        PERM_RULE(CAP_AP_LM, perms & (CAP_AP_W | CAP_AP_EL));
     }
 #endif
 
@@ -520,7 +520,7 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap)
 
     /* rule 13 */
     if (cheri_v090) {
-        uint16_t cmp_val = cap->cr_arch_perm &
+        target_ulong cmp_val = perms &
             (CAP_AP_C | CAP_AP_LM | CAP_AP_EL | CAP_AP_SL);
         PERM_RULE(CAP_AP_X, (cmp_val == 0) ||
                 (cmp_val == (CAP_AP_C | CAP_AP_LM | CAP_AP_EL | CAP_AP_SL)));
@@ -528,18 +528,19 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap)
 #endif
 
     /* rule 14 */
-    PERM_RULE(CAP_AP_ASR, cap->cr_arch_perm & CAP_AP_X);
+    PERM_RULE(CAP_AP_ASR, perms & CAP_AP_X);
 
     /* rule 15 */
-    if (cap->cr_m == 1) {
-        if (!(cap->cr_arch_perm & CAP_AP_X)) {
-            cap->cr_m = 0;
+    if (cap_get_exec_mode(cap) == 1) {
+        if (!(perms & CAP_AP_X)) {
+            cap_set_exec_mode(cap, 0);
             updated = true;
         }
     }
-
+    cap_set_perms(cap, perms);
     return updated;
 }
+#endif
 
 // Check if num_bytes bytes at addr can be read using capability c
 static inline bool cap_is_in_bounds(const cap_register_t *c, target_ulong addr,
