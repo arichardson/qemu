@@ -964,7 +964,7 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
         cap_set_perms(&result, perms & CAP_CC(PERM_SW_ALL));
     }
     else {
-        sanitize_m_ap(&result, perms);
+        fix_up_m_ap(env, &result, perms);
     }
 
     update_capreg(env, cd, &result);
@@ -1450,7 +1450,7 @@ static void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
             return;
         }
         /* Update the modified set to be in line with the acperm rules again. */
-        sanitize_m_ap(&tmp, cap_get_all_perms(&tmp) & ~(CAP_AP_LM | CAP_AP_W));
+        fix_up_m_ap(env, &tmp, cap_get_all_perms(&tmp) & ~(CAP_AP_LM | CAP_AP_W));
         *pesbt = tmp.cr_pesbt;
     }
 #endif
