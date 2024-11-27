@@ -280,7 +280,7 @@ target_ulong CHERI_HELPER_IMPL(cgetperm(CPUArchState *env, uint32_t cb))
     target_ulong perms = cap_get_all_perms(cbp);
     cheri_debug_assert(((perms & CAP_VALID_PERM_BITS) == perms) &&
                        "Unknown permission bits set!");
-    if (cap_has_invalid_perms_encoding(cbp)) {
+    if (cap_has_invalid_perms_encoding(env, cbp)) {
         /* For invalid architectural perms, zero every except SW perms. */
         return perms & CAP_CC(PERM_SW_ALL);
     }
@@ -677,7 +677,7 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
     } else if ((cap_get_all_perms(ctp) & cap_get_all_perms(cbp)) !=
                cap_get_all_perms(ctp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_UserDefViolation, cb);
-    } else if (cap_has_invalid_perms_encoding(ctp)) {
+    } else if (cap_has_invalid_perms_encoding(env, ctp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_UserDefViolation, ct);
     } else if (cap_has_reserved_bits_set(ctp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, ct);
@@ -960,7 +960,7 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
         result.cr_tag = 0;
     }
 
-    if (cap_has_invalid_perms_encoding(cbp)) {
+    if (cap_has_invalid_perms_encoding(env, cbp)) {
         /*
          * "If AP and M-bit field in cs1 could not have been produced by
          * acperm then clear all AP permissions and the M-bit."
