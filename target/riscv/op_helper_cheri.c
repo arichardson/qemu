@@ -173,14 +173,19 @@ static RISCVException check_csr_cap_permissions(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
-
-static inline cap_register_t clip_if_xlen(CPUArchState *env, cap_register_t cap)
+/*Copy a capability to a register, clipping it to an integer if we are not
+in capmode. Returns the resulting value*/
+static inline cap_register_t
+write_capmode_reg(CPUArchState *env, cap_register_t cap, uint32_t regnum)
 {
+    cap_register_t *target = get_cap_in_gpregs(&env->gpcapregs, regnum);
     if (!cheri_in_capmode(env)) {
-        // clears all the top bits... do we have a setter to do this
-        return CAP_cc(make_null_derived_cap(cap_get_cursor(&cap)));
+        update_capreg_to_intval(env, regnum, cap_get_cursor(&cap));
+    } else {
+        *target = cap;
+        cheri_log_instr_changed_gp_capreg(env, regnum, target, LRI_GPR_ACCESS);
     }
-    return cap;
+    return *target;
 }
 
 void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
@@ -207,10 +212,8 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
     rs_cap = *get_readonly_capreg(env,rs1);
     if (rd) {
-        csr_cap = csr_cap_info->read(env);
-        cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs,rd);
-        *rd_cap = clip_if_xlen(env,csr_cap);
-        cheri_log_instr_changed_gp_capreg(env, rd, rd_cap);
+        csr_cap = csr_cap_info->read(env, csr_cap_info);
+        write_capmode_reg(env, csr_cap, rd);
     }
 
     cheri_log_instr_changed_capreg(env, csr_cap_info->name, &rs_cap);
@@ -244,17 +247,21 @@ void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         rs_cap = *get_readonly_capreg(env, rs1);
     }
 
-    csr_cap = csr_cap_info->read(env);
-    cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs,rd);
-    if(rd) {
-        *dest = clip_if_xlen(env,csr_cap);
-        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
-    }
+    csr_cap = csr_cap_info->read(env, csr_cap_info);
     if (rs1){
         target_ulong new_val;
         new_val = cap_get_cursor(&csr_cap) | cap_get_cursor(&rs_cap);
         update_special_register(env, &rs_cap, csr_cap_info->name, new_val);
         csr_cap_info->write(env, &rs_cap);
+    }
+    if (rd) {
+        if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
+            write_capmode_reg(env, csr_cap, rd);
+        } else {
+            cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs, rd);
+            *dest = csr_cap;
+            cheri_log_instr_changed_gp_capreg(env, rd, dest, LRI_GPR_ACCESS);
+        }
     }
 
 }
@@ -283,17 +290,21 @@ void HELPER(csrrc_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         rs_cap = *get_readonly_capreg(env, rs1);
     }
 
-    csr_cap = csr_cap_info->read(env);
-    cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs,rd);
-    if(rd) {
-        *dest = clip_if_xlen(env, csr_cap);
-        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
-    }
+    csr_cap = csr_cap_info->read(env, csr_cap_info);
     if (rs1) {
         target_ulong addr;
         addr = cap_get_cursor(&csr_cap) & ( ~cap_get_cursor(&rs_cap) );
         update_special_register(env, &rs_cap, csr_cap_info->name, addr);
         csr_cap_info->write(env, &rs_cap);
+    }
+    if (rd) {
+        if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
+            write_capmode_reg(env, csr_cap, rd);
+        } else {
+            cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs, rd);
+            *dest = csr_cap;
+            cheri_log_instr_changed_gp_capreg(env, rd, dest, LRI_GPR_ACCESS);
+        }
     }
 }
 
@@ -318,15 +329,18 @@ void HELPER(csrrwi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         return;
     }
 
-    csr_cap = csr_cap_info->read(env);
+    csr_cap = csr_cap_info->read(env, csr_cap_info);
+
+    csr_cap_info->write(env, csr_cap_info, csr_cap, rs1, false);
     if (rd) {
-        cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs,rd);
-        *dest = clip_if_xlen(env, csr_cap);
-        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
+        if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
+            write_capmode_reg(env, csr_cap, rd);
+        } else {
+            cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs, rd);
+            *dest = csr_cap;
+            cheri_log_instr_changed_gp_capreg(env, rd, dest, LRI_GPR_ACCESS);
+        }
     }
-    tmp_cap = csr_cap;
-    update_special_register(env, &tmp_cap, csr_cap_info->name, rs1);
-    csr_cap_info->write(env, &tmp_cap);
 }
 
 void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
@@ -349,18 +363,22 @@ void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         return;
     }
 
-    csr_cap = csr_cap_info->read(env);
-    if (rd) {
-        cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs,rd);
-        *rd_cap = clip_if_xlen(env, csr_cap);
-        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
-    }
+    csr_cap = csr_cap_info->read(env, csr_cap_info);
 
     if (rs1_val) {
         target_ulong new_val;
         new_val = cap_get_cursor(&csr_cap ) | rs1_val;
         update_special_register(env, &csr_cap, csr_cap_info->name, new_val);
         csr_cap_info->write(env, &csr_cap);
+    }
+    if (rd) {
+        if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
+            write_capmode_reg(env, csr_cap, rd);
+        } else {
+            cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs, rd);
+            *dest = csr_cap;
+            cheri_log_instr_changed_gp_capreg(env, rd, dest, LRI_GPR_ACCESS);
+        }
     }
 }
 
@@ -384,13 +402,7 @@ void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         return;
     }
 
-    csr_cap = csr_cap_info->read(env);
-    if (rd) {
-        cap_register_t *rd_cap = get_cap_in_gpregs(&env->gpcapregs,rd);
-        *rd_cap = clip_if_xlen(env, csr_cap);
-        cheri_log_instr_changed_gp_capreg(env, rd, &csr_cap);
-    }
-
+    csr_cap = csr_cap_info->read(env, csr_cap_info);
 
     if (rs1_val) {
         target_ulong new_val;
@@ -398,8 +410,15 @@ void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         update_special_register(env, &csr_cap, csr_cap_info->name, new_val);
         csr_cap_info->write(env, &csr_cap);
     }
-
-
+    if (rd) {
+        if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
+            write_capmode_reg(env, csr_cap, rd);
+        } else {
+            cap_register_t *dest = get_cap_in_gpregs(&env->gpcapregs, rd);
+            *dest = csr_cap;
+            cheri_log_instr_changed_gp_capreg(env, rd, dest, LRI_GPR_ACCESS);
+        }
+    }
 }
 
 
