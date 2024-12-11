@@ -467,6 +467,7 @@ struct RISCVCPU {
 #elif defined(TARGET_CHERI_RISCV_STD)
         bool ext_cheri;
         bool ext_zyhybrid;
+        bool cheri_pte;
 #endif
         char *priv_spec;
         char *user_spec;
