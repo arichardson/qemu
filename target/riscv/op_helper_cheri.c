@@ -222,7 +222,6 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                         uint32_t rs1)
 {
-    cap_register_t rs_cap;
     RISCVException ret;
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
     cap_register_t csr_cap;
@@ -241,16 +240,11 @@ void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                                    true, GETPC());
     }
 
-    if (rs1) {
-        rs_cap = *get_readonly_capreg(env, rs1);
-    }
-
     csr_cap = csr_cap_info->read(env, csr_cap_info);
-    if (rs1){
-        target_ulong new_val;
-        new_val = cap_get_cursor(&csr_cap) | cap_get_cursor(&rs_cap);
-        update_special_register(env, &rs_cap, csr_cap_info->name, new_val);
-        csr_cap_info->write(env, &rs_cap);
+    if (rs1) {
+        cap_register_t rs_cap = *get_readonly_capreg(env, rs1);
+        target_ulong new_val = cap_get_cursor(&csr_cap) | cap_get_cursor(&rs_cap);
+        csr_cap_info->write(env, csr_cap_info, rs_cap, new_val, false);
     }
     if (rd) {
         if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
