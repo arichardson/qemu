@@ -1139,6 +1139,7 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("y", RISCVCPU, cfg.ext_cheri, true),
     DEFINE_PROP_BOOL("Zyhybrid", RISCVCPU, cfg.ext_zyhybrid, true),
     DEFINE_PROP_BOOL("Zylevels1", RISCVCPU, cfg.ext_zylevels1, false),
+    DEFINE_PROP_BOOL("cheri_pte", RISCVCPU, cfg.cheri_pte, false),
 #endif
     DEFINE_PROP_STRING("vext_spec", RISCVCPU, cfg.vext_spec),
     DEFINE_PROP_UINT16("vlen", RISCVCPU, cfg.vlen, 128),

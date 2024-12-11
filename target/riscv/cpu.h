@@ -469,6 +469,7 @@ struct RISCVCPU {
         bool ext_zyhybrid;
         bool ext_zylevels1;
         uint8_t lvbits; /* Only 0 and 1 (Zylevels1) are currently supported. */
+        bool cheri_pte;
 #endif
         char *priv_spec;
         char *user_spec;
