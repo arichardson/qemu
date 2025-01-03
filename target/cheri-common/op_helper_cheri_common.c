@@ -1432,28 +1432,28 @@ static void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
                               CAP_PERM_STORE_CAP | CAP_PERM_STORE);
     }
 #elif CHERI_FMT_RISCV
+    /*
+     * temporary capability for checking and updating permissions, its address
+     * is not used, cr_arch_perm will be decompressed only if permissions must
+     * be modified.
+     */
+    cap_register_t tmp = *source;
+    tmp.cr_pesbt = *pesbt;
     if (!cap_has_perms(source, CAP_AP_LM)) {
         /*
-         * Create a temporary capability for checking and updating permissions,
-         * its address is not used.
-         * All capabilities in the system use the same number of lvbits, we
-         * can copy the value from any other capability.
-         */
-        cap_register_t tmp = *source;
-        tmp.cr_pesbt = *pesbt;
-
-        /*
-         * The spec says "Capabilities that are sealed or untagged do not have
-         * their permissions changed."
+         * The spec says about permission updates triggered by LM:
+         * "Capabilities that are sealed or untagged do not have their
+         * permissions changed."
          * The tag has already been checked by the caller.
+         *
+         * cap_is_unsealed does not require tmp to be decompressed.
          */
-        if (!cap_is_unsealed(&tmp)) {
-            return;
+        if (cap_is_unsealed(&tmp)) {
+            /* Update the modified set to be in line with the acperm rules again. */
+            fix_up_m_ap(env, &tmp, cap_get_all_perms(&tmp) & ~(CAP_AP_LM | CAP_AP_W));
         }
-        /* Update the modified set to be in line with the acperm rules again. */
-        fix_up_m_ap(env, &tmp, cap_get_all_perms(&tmp) & ~(CAP_AP_LM | CAP_AP_W));
-        *pesbt = tmp.cr_pesbt;
     }
+    *pesbt = tmp.cr_pesbt;
 #endif
 }
 
