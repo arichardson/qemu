@@ -307,7 +307,9 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ul
 {
     bool updated = false;
     RISCVCPU *cpu = env_archcpu(env);
+
     bool cheri_v090 = cpu->cfg.cheri_v090;
+    uint8_t lvbits = cpu->cfg.lvbits;
 
   /*
    * The code below tries to follow the rules in the risc-v cheri
@@ -349,8 +351,18 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ul
     PERM_RULE(CAP_AP_X, perms & (CAP_AP_W | CAP_AP_C));
 #endif
 
-    /* rule 7 is about EL, which is unsupported */
-    /* rule 8 is about EL (for RV32) */
+    /* rule 7 */
+    if (lvbits > 0) {
+        PERM_RULE(CAP_AP_EL, (perms & (CAP_AP_C | CAP_AP_R)) ==
+                (CAP_AP_C | CAP_AP_R));
+    }
+
+#if CAP_CC(ADDR_WIDTH) == 32
+    /* rule 8 */
+    if (lvbits > 0) {
+        PERM_RULE(CAP_AP_EL, perms & CAP_AP_LM);
+    }
+#endif
 
     /* rule 9 */
     if (cheri_v090) {
@@ -365,10 +377,18 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ul
     }
 #endif
 
-    /* rule 11 is about SL, which is unsupported */
-    /* rule 12 is about SL (for RV32) */
+    /* rule 11 */
+    if (lvbits > 0) {
+        PERM_RULE(CAP_AP_SL, perms & CAP_AP_C);
+    }
 
 #if CAP_CC(ADDR_WIDTH) == 32
+    /* rule 12 */
+    if (lvbits > 0) {
+        /* SL requires LM and (X or W) */
+        PERM_RULE(CAP_AP_SL, perms & CAP_AP_LM);
+        PERM_RULE(CAP_AP_SL, perms & (CAP_AP_X | CAP_AP_W));
+    }
 
     /* rule 13 */
     if (cheri_v090) {
