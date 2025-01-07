@@ -1049,6 +1049,8 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     if (cpu->cfg.cheri_v090) {
         cpu->cfg.scmode_flip = false;
     }
+    /* Zcherilevels is not supported yet. */
+    cpu->cfg.lvbits = 0;
 #endif
 
     riscv_cpu_register_gdb_regs_for_features(cs);
