@@ -964,6 +964,7 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
         cap_set_perms(&result, perms & CAP_CC(PERM_SW_ALL));
     }
     else {
+        /* Note: This also adjusts level if cr_lvbits == 1. */
         fix_up_m_ap(env, &result, perms);
     }
 
