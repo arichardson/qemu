@@ -1415,14 +1415,16 @@ cheri_tag_prot_clear_or_trap(CPUArchState *env, target_ulong va,
 }
 
 /*
- * source must be a fully decompressed capability
+ * Update the permissions of a capability that has just been loaded from
+ * memory. pesbt points to the metadata of the loaded capability, source is
+ * the capability that authorized the load.
  *
- * (source is the capability that contains the load address and that
- * authorizes the memory access. As per the spec, it must point to a
- * register. We access capability registers via struct GPCapRegs, which
- * stores decompressed capabilities.)
+ * Permission updates may be enforced by load mutable or capability levels.
+ *
+ * source must be fully decompressed. This is a reasonable assumption since
+ * it's always pointing to a register.
  */
-static void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
+static void update_loaded_cap_perms(CPUArchState *env, target_ulong *pesbt,
                                 const cap_register_t *source)
 {
 #ifdef TARGET_AARCH64
@@ -1456,6 +1458,27 @@ static void squash_mutable_permissions(CPUArchState *env, target_ulong *pesbt,
             fix_up_m_ap(env, &tmp, cap_get_all_perms(&tmp) & ~(CAP_AP_LM | CAP_AP_W));
         }
     }
+
+    /* If lvbits == 0, the format still has EL, but it's always 0 (reserved). */
+    if (env_archcpu(env)->cfg.lvbits > 0 && !cap_has_perms(source, CAP_AP_EL)) {
+#if 0
+        uint8_t min_cl = MIN(CAP_cc(get_level)(source), CAP_cc(get_level)(&tmp));
+        CAP_cc(update_level)(&tmp, min_cl);
+#else
+        target_ulong tmp_lvl = cap_get_all_perms(&tmp) & CAP_PERM_GLOBAL;
+        target_ulong source_lvl = cap_get_all_perms(source) & CAP_PERM_GLOBAL;
+        if ((tmp_lvl & source_lvl) == 0) {
+            fix_up_m_ap(env, &tmp, cap_get_all_perms(&tmp) & ~CAP_PERM_GLOBAL);
+        }
+#endif
+
+        /* According to the spec, "EL is not changed if data cap is sealed." */
+        if (cap_is_unsealed(&tmp)) {
+            fix_up_m_ap(env, &tmp, cap_get_all_perms(&tmp) & ~CAP_AP_EL);
+        }
+    }
+
+    /* Update pesbt in any case, we might have modified CL. */
     *pesbt = tmp.cr_pesbt;
 #endif
 }
@@ -1526,7 +1549,7 @@ bool load_cap_from_memory_raw_tag_mmu_idx(
         tag = cheri_tag_prot_clear_or_trap(env, vaddr, cb, source, prot,
                                            retpc, tag);
         if (tag) {
-            squash_mutable_permissions(env, pesbt, source);
+            update_loaded_cap_perms(env, pesbt, source);
         }
     }
 
