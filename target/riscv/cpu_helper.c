@@ -1081,6 +1081,9 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
         } else {
             cs->exception_index = page_fault_exceptions ?
                 RISCV_EXCP_LOAD_PAGE_FAULT : RISCV_EXCP_LOAD_ACCESS_FAULT;
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+            env->last_cap_cause = 0;
+#endif
         }
         break;
     case MMU_DATA_STORE:
@@ -1098,9 +1101,8 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
 #endif
 #endif
         } else {
-            cs->exception_index = page_fault_exceptions
-                                      ? RISCV_EXCP_STORE_PAGE_FAULT
-                                      : RISCV_EXCP_STORE_AMO_ACCESS_FAULT;
+            cs->exception_index = page_fault_exceptions ?
+                RISCV_EXCP_STORE_PAGE_FAULT : RISCV_EXCP_STORE_AMO_ACCESS_FAULT;
         }
         break;
     default:
@@ -1485,6 +1487,10 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         case RISCV_EXCP_ILLEGAL_INST:
             write_tval  = true;
             tval = env->badaddr;
+#ifdef TARGET_CHERI
+            mtval2 = env->last_cap_cause == -1 ? 0 : env->last_cap_cause;
+            env->last_cap_cause = -1;
+#endif
             break;
 #ifdef TARGET_CHERI
         case RISCV_EXCP_CHERI:
