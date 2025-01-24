@@ -191,7 +191,6 @@ static bool gen_store(DisasContext *ctx, arg_sb *a, MemOp memop)
         return gen_cap_store(ctx, a->rs1, a->rs2, a->imm, memop);
     }
 #endif
-
     TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
     TCGv data = get_gpr(ctx, a->rs2, EXT_NONE);
 
