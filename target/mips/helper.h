@@ -269,6 +269,16 @@ FOP_PROTO(sune)
 FOP_PROTO(sne)
 #undef FOP_PROTO
 
+/* Special functions */
+#ifndef CONFIG_USER_ONLY
+#if defined(TARGET_CHERI)
+/* cannot access EPC directly since it is the offset of EPCC */
+DEF_HELPER_1(mfc0_epc, tl, env)
+DEF_HELPER_2(mtc0_epc, void, env, tl)
+DEF_HELPER_1(mfc0_error_epc, tl, env)
+DEF_HELPER_2(mtc0_error_epc, void, env, tl)
+#endif
+#endif /* !CONFIG_USER_ONLY */
 DEF_HELPER_1(rdhwr_cpunum, tl, env)
 DEF_HELPER_1(rdhwr_synci_step, tl, env)
 DEF_HELPER_1(rdhwr_cc, tl, env)
