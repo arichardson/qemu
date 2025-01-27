@@ -1023,7 +1023,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     }
 
     // Non-standard extensions present
-    set_misa(env, env->misa_mxl, env->misa_ext | RV('X'));
+    set_misa(env, env->misa_mxl, env->misa_ext | RVX);
     set_feature(env, RISCV_FEATURE_CHERI_PURECAP);
     if (!cpu->cfg.ext_cheri_purecap) {
         set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
