@@ -1032,7 +1032,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 #ifdef TARGET_CHERI_RISCV_V9
     if (cpu->cfg.ext_cheri) {
         // Non-standard extensions present
-        set_misa(env, env->misa_mxl, env->misa_ext | RV('X'));
+        set_misa(env, env->misa_mxl, env->misa_ext | RVX);
     }
 #else
     set_feature(env, RISCV_FEATURE_CHERI_PURECAP);
