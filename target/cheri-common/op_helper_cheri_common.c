@@ -2030,6 +2030,10 @@ target_ulong CHERI_HELPER_IMPL(scss(CPUArchState *env, uint32_t cs1,
         cap_get_all_perms(cs2p)) {
         return 0;
     }
+    /* This passes if levels are not used, see the cbld helper. */
+    if (cap_get_cl(env, cs1p) < cap_get_cl(env, cs2p)) {
+        return 0;
+    }
 
     return 1;
 }
