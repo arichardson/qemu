@@ -674,6 +674,8 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
     } else if (cap_get_base(ctp) > cap_get_top_full(ctp)) {
         // check for length < 0 - possible because cs2 might be untagged
         raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation, ct);
+    } else if (cap_get_cl(env, cbp) < cap_get_cl(env, ctp)) {
+        raise_cheri_exception_or_invalidate(env, CapEx_GlobalViolation, cb);
     } else if ((cap_get_all_perms(ctp) & cap_get_all_perms(cbp)) !=
                cap_get_all_perms(ctp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_UserDefViolation, cb);
@@ -695,6 +697,9 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
         cap_set_cursor(&derived, cap_get_base(&result));
         CAP_cc(setbounds)(&derived, cap_get_length_full(&result));
         cap_set_cursor(&derived, cap_get_cursor(&result));
+        /* Prevent cap_exactly_equal from failing due to the levels (see the
+        check above, CL fields don't have to be identical). */
+        cap_set_cl(env, &derived, cap_get_cl(env, &result));
         cap_set_perms(&derived,
                       cap_get_all_perms(cbp) & cap_get_all_perms(ctp));
 #ifndef TARGET_AARCH64
