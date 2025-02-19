@@ -274,9 +274,7 @@ struct CPURISCVState {
     cap_register_t sepcc_hs;
     cap_register_t sscratchc_hs;
 
-    /* Additional hypervisor related registers added by Cheri*/
     target_ulong stval2;
-    target_ulong htval2;
     target_ulong vstval2;
     target_ulong stval2_hs;
 #else
