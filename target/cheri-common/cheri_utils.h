@@ -348,12 +348,14 @@ do { \
  */
 static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ulong perms)
 {
+    bool __attribute__((unused)) hybrid_support = false;
     bool cheri_v090 = false;
     bool updated = false;
     uint8_t lvbits = 0;
 #ifdef TARGET_RISCV
     RISCVCPU *cpu = env_archcpu(env);
 
+    hybrid_support = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID);
     cheri_v090 = cpu->cfg.cheri_v090;
     lvbits = cpu->cfg.lvbits;
 #endif
@@ -451,13 +453,16 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ul
     /* rule 14 */
     PERM_RULE(CAP_AP_ASR, perms & CAP_AP_X);
 
+#if CAP_CC(ADDR_WIDTH) == 32
     /* rule 15 */
     if (cap_get_exec_mode(cap) == 1) {
-        if (!(perms & CAP_AP_X)) {
+        if (!(perms & CAP_AP_X)  || !hybrid_support) {
             cap_set_exec_mode(cap, 0);
             updated = true;
         }
     }
+#endif
+
     cap_set_perms(cap, perms);
     return updated;
 }
