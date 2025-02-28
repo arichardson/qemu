@@ -473,7 +473,7 @@ struct RISCVCPU {
         bool ext_cheri_v9; /* Temporary flag to support new semantics. */
 #elif defined(TARGET_CHERI_RISCV_STD)
         bool ext_cheri_purecap;
-        bool scmode_flip;
+        bool m_flip;
         bool cheri_v090;
         bool cheri_pte;
         /* number of levels (Zcherilevels): 0 invalid, 1 disabled (default)) */
