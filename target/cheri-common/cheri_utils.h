@@ -349,14 +349,12 @@ do { \
 static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ulong perms)
 {
     bool __attribute__((unused)) hybrid_support = false;
-    bool cheri_v090 = false;
     bool updated = false;
     uint8_t lvbits = 0;
 #ifdef TARGET_RISCV
     RISCVCPU *cpu = env_archcpu(env);
 
     hybrid_support = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID);
-    cheri_v090 = cpu->cfg.cheri_v090;
     lvbits = cpu->cfg.lvbits;
 #endif
 
@@ -369,11 +367,9 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ul
 #if CAP_CC(ADDR_WIDTH) == 32
     {
         target_ulong non_asr_perms = CAP_AP_C | CAP_AP_R | CAP_AP_W | CAP_AP_X;
-        if (cheri_v090) {
-            non_asr_perms |= CAP_AP_LM;
-            if (lvbits > 0) {
-                non_asr_perms |= CAP_AP_EL | CAP_AP_SL;
-            }
+        non_asr_perms |= CAP_AP_LM;
+        if (lvbits > 0) {
+            non_asr_perms |= CAP_AP_EL | CAP_AP_SL;
         }
 
         /* rule 1 */
@@ -393,10 +389,7 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ul
     PERM_RULE(CAP_AP_X, perms & CAP_AP_R);
 
     /* rule 5 */
-    if (cheri_v090) {
-        PERM_RULE(CAP_AP_W, !(perms & CAP_AP_C) ||
-                (perms & CAP_AP_LM));
-    }
+    PERM_RULE(CAP_AP_W, !(perms & CAP_AP_C) || (perms & CAP_AP_LM));
 
     /* rule 6 */
     PERM_RULE(CAP_AP_X, perms & (CAP_AP_W | CAP_AP_C));
@@ -416,16 +409,12 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ul
 #endif
 
     /* rule 9 */
-    if (cheri_v090) {
         PERM_RULE(CAP_AP_LM, (perms & (CAP_AP_C | CAP_AP_R)) ==
                 (CAP_AP_C | CAP_AP_R));
-    }
 
 #if CAP_CC(ADDR_WIDTH) == 32
     /* rule 10 */
-    if (cheri_v090) {
         PERM_RULE(CAP_AP_LM, perms & (CAP_AP_W | CAP_AP_EL));
-    }
 #endif
 
     /* rule 11 */
@@ -442,12 +431,10 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ul
     }
 
     /* rule 13 */
-    if (cheri_v090) {
         target_ulong cmp_val = perms &
             (CAP_AP_C | CAP_AP_LM | CAP_AP_EL | CAP_AP_SL);
         PERM_RULE(CAP_AP_X, (cmp_val == 0) ||
                 (cmp_val == (CAP_AP_C | CAP_AP_LM | CAP_AP_EL | CAP_AP_SL)));
-    }
 #endif
 
     /* rule 14 */
