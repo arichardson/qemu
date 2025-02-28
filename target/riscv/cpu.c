@@ -1052,12 +1052,6 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    /*
-        * cheri_v090 and m_flip (use legacy definition of M) are incompatible,
-        * the v0.9.0 switch takes precedence.
-        */
-    cpu->cfg.m_flip = false;
-
     if (cpu->cfg.levels & (cpu->cfg.levels -1)) {
         error_setg(errp, "Number of levels must be a power of 2.");
         return;
