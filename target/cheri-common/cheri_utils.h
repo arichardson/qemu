@@ -413,7 +413,9 @@ static inline bool fix_up_m_ap(CPUArchState *env, cap_register_t *cap, target_ul
 
 #if CAP_CC(ADDR_WIDTH) == 32
     /* rule 10 */
+    if (lvbits > 0) {
         PERM_RULE(CAP_AP_LM, perms & (CAP_AP_W | CAP_AP_EL));
+    }
 #endif
 
     /* rule 11 */
