@@ -274,6 +274,13 @@ static void gen_exception_inst_addr_mis(DisasContext *ctx)
     generate_exception_mtval(ctx, RISCV_EXCP_INST_ADDR_MIS);
 }
 
+#define LOG_BRANCH(X)                                                          \
+    do {                                                                       \
+        TCGv tdest = tcg_const_tl(X);                                          \
+        gen_helper_riscv_log_branch(cpu_env, tdest);                           \
+        tcg_temp_free(tdest);                                                  \
+    } while (0);
+
 static void gen_check_branch_target(DisasContext *ctx, target_ulong dest);
 static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest,
                         bool bounds_check)
@@ -281,6 +288,7 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest,
     if (bounds_check)
         gen_check_branch_target(ctx, dest);
 
+    LOG_BRANCH(dest);
     if (translator_use_goto_tb(&ctx->base, dest)) {
         tcg_gen_goto_tb(n);
         gen_set_pc_imm(ctx, dest);
@@ -655,7 +663,7 @@ static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
     }
     /* For CHERI ISAv8 the result is an offset relative to PCC.base */
     gen_set_gpr_const(ctx, rd, ctx->pc_succ_insn - pcc_reloc(ctx));
-
+    LOG_BRANCH(next_pc);
     gen_goto_tb(ctx, 0, ctx->base.pc_next + imm, /*bounds_check=*/true); /* must use this for safety */
     ctx->base.is_jmp = DISAS_NORETURN;
 }
@@ -676,6 +684,7 @@ static void gen_jalr(DisasContext *ctx, int rd, int rs1, target_ulong imm)
     // Note: Only update cpu_pc after a successful bounds check to avoid
     // representability issues caused by directly modifying PCC.cursor.
     gen_set_pc(ctx, t0);
+    gen_helper_riscv_log_branch(cpu_env, t0);
 
     if (!has_ext(ctx, RVC)) {
         misaligned = gen_new_label();
