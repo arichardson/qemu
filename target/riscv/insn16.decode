@@ -53,7 +53,7 @@
 &u         imm rd       !extern
 &shift     shamt rs1 rd !extern
 &cci       imm cs1 cd   !extern
-&cc        cs1 cd     s  !extern
+&cc        cs1 cd       !extern
 
 # Formats 16:
 @cr        ....  ..... .....  .. &r      rs2=%rs2_5       rs1=%rd     %rd
