@@ -1129,7 +1129,9 @@ static inline void gen_cap_load_pesbt(DisasContext *ctx, int regnum, TCGv pesbt)
     WRAP_PESBT_CLEAR(name)
 
 WRAP_PESBT_ALL(OTYPE)
+#ifndef TARGET_RISCV
 WRAP_PESBT_ALL(HWPERMS)
+#endif
 
 // Set the tag bit of register to the lowest bit of tagbit
 static inline void gen_cap_set_tag(DisasContext *ctx, int regnum, TCGv tagbit,
@@ -1277,11 +1279,13 @@ static inline void gen_cap_get_sealed_i32(DisasContext *ctx, int regnum,
     tcg_temp_free(sealedv);
 }
 
+#ifndef TARGET_RISCV
 static inline void gen_cap_get_perms(DisasContext *ctx, int regnum, TCGv perms)
 {
     gen_cap_pesbt_extract_HWPERMS(ctx, regnum, perms);
     cheri_tcg_printf_verbose("cd", "Ge reg %d perms: %x\n", regnum, perms);
 }
+#endif
 
 static inline void gen_cap_get_hi(DisasContext *ctx, int regnum, TCGv lim)
 {
@@ -1920,6 +1924,7 @@ static inline void gen_cap_get_eq_i32(DisasContext *ctx, int rx, int ry,
                              eq);
 }
 
+#ifndef TARGET_RISCV
 static inline void gen_cap_clear_perms(DisasContext *ctx, int regnum, TCGv mask,
                                        bool canon)
 {
@@ -2170,6 +2175,8 @@ static inline void gen_cap_set_pesbt(DisasContext *ctx, int regnum, TCGv pesbt)
                       offsetof(cap_register_t, cr_pesbt));
     tcg_temp_free(mem_pesbt);
 }
+
+#endif // !TARGET_RISCV
 
 // Checks a cap is in bounds for a given size, has specified perms, is tagged,
 // and not sealed. Or throws an exception. Because of the branch, this will kill
