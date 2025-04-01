@@ -485,7 +485,7 @@ void CHERI_HELPER_IMPL(cinvoke(CPUArchState *env, uint32_t code_regnum,
     } else if (!cap_is_sealed_with_type(data_cap)) {
         raise_cheri_exception(env, CapEx_SealViolation, CapExType_InstrAccess,
                               data_regnum);
-#if CAP_CC(FIELD_OTYPE_USED) == 1
+#ifndef TARGET_RISCV
     // RISCV no longer has the TYPE field or exception
     } else if (cap_get_otype_unsigned(code_cap) != cap_get_otype_unsigned(data_cap) ||
                !cap_is_sealed_with_type(code_cap)) {
@@ -550,7 +550,7 @@ void CHERI_HELPER_IMPL(cchecktype(CPUArchState *env, uint32_t cs, uint32_t cb))
         raise_cheri_exception(env, CapEx_SealViolation, CapExType_InstrAccess,
                               cb);
     } 
-#if CAP_CC(FIELD_OTYPE_USED) == 1
+#ifndef TARGET_RISCV
     // RISCV no longer has the TYPE field or exception
     else if (cap_get_otype_unsigned(csp) != cap_get_otype_unsigned(cbp) ||
                !cap_is_sealed_with_type(csp)) {
@@ -904,7 +904,7 @@ void CHERI_HELPER_IMPL(cunseal(CPUArchState *env, uint32_t cd, uint32_t cs,
     } else if (!cap_is_unsealed(ctp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
                                             CapExType_Data, ct);
-#if CAP_CC(FIELD_OTYPE_USED) == 1
+#ifndef TARGET_RISCV
     // RISCV no longer has the TYPE field or exception
     } else if (!cap_is_sealed_with_type(csp)) {
         /* Reserved otypes are not allowed. */
