@@ -837,9 +837,11 @@ static void cseal_common(CPUArchState *env, uint32_t cd, uint32_t cs,
     } else if (!cap_is_unsealed(ctp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_SealViolation,
                                             CapExType_Data, ct);
+#ifndef TARGET_RISCV
     } else if (!cap_has_perms(ctp, CAP_PERM_SEAL)) {
         raise_cheri_exception_or_invalidate(env, CapEx_PermitSealViolation,
                                             CapExType_Data, ct);
+#endif
     } else if (!conditional && !cap_cursor_in_bounds(ctp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
                                             CapExType_Data, ct);
@@ -913,10 +915,10 @@ void CHERI_HELPER_IMPL(cunseal(CPUArchState *env, uint32_t cd, uint32_t cs,
     } else if (ct_cursor != cap_get_otype_unsigned(csp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_TypeViolation,
                                             CapExType_Data, ct);
-#endif
     } else if (!cap_has_perms(ctp, CAP_PERM_UNSEAL)) {
         raise_cheri_exception_or_invalidate(env, CapEx_PermitUnsealViolation,
                                             CapExType_Data, ct);
+#endif
     } else if (!cap_cursor_in_bounds(ctp)) {
         /* Must be in bounds and not one past end (i.e. not equal to top). */
         raise_cheri_exception_or_invalidate(env, CapEx_LengthViolation,
@@ -1268,8 +1270,7 @@ void CHERI_HELPER_IMPL(csetflags(CPUArchState *env, uint32_t cd, uint32_t cb,
     if (!RESULT_VALID) {
         result.cr_tag = 0;
     }
-    flags &= CAP_FLAGS_ALL_BITS;
-    _Static_assert(CAP_FLAGS_ALL_BITS == 1, "Only one flag should exist");
+    flags &= 1;
     cap_set_exec_mode(&result, flags ? CHERI_EXEC_CAPMODE : CHERI_EXEC_INTMODE);
     update_capreg(env, cd, &result);
 }
