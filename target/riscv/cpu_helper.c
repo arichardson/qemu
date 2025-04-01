@@ -1333,8 +1333,8 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
          * the exception handler is meant to run in capability pointer mode.
          */ \
         if (src_cap && cap_has_perms(src_cap, CAP_PERM_EXECUTE)) { \
-            cheri_update_pcc_for_exc_handler(&env->PCC, src_cap, new_pc); \
-            qemu_log_instr_dbg_cap(env, "PCC", &env->PCC); \
+            cheri_update_pcc_for_exc_handler(&env->pcc, src_cap, new_pc); \
+            qemu_log_instr_dbg_cap(env, "PCC", &env->pcc); \
         } \
         else { \
           __UPDATE_PC \
