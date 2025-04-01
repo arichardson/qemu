@@ -135,16 +135,6 @@ static inline bool cap_has_reserved_bits_set(const cap_register_t *c)
     return (CAP_cc(get_reserved)(c) != 0) || (CAP_cc(get_reserved2)(c) != 0);
 }
 
-/**
- * Returns true if the permissions encoding in @p c could not have been
- * produced by a valid ACPERM sequence.
- */
-static inline bool cap_has_invalid_perms_encoding(const cap_register_t *c)
-{
-    /* TODO: implement this for the RISC-V standard. */
-    return false;
-}
-
 // The top of the capability (exclusive -- i.e., one past the end)
 static inline target_ulong cap_get_top(const cap_register_t *c)
 {
@@ -295,6 +285,7 @@ static inline void cap_make_sealed_entry(cap_register_t *c)
  */
 static inline bool valid_ap(uint8_t cr_arch_perm)
 {
+#ifdef TARGET_RISCV
     /* "ASR permission cannot be set without X permission" */
     if ((cr_arch_perm & (CAP_AP_ASR | CAP_AP_X)) == CAP_AP_ASR) {
         return false;
@@ -334,9 +325,20 @@ static inline bool valid_ap(uint8_t cr_arch_perm)
         return false;
     }
 #endif
-
+#endif
     return true;
 }
+
+/**
+ * Returns true if the permissions encoding in @p c could not have been
+ * produced by a valid ACPERM sequence.
+ */
+static inline bool cap_has_invalid_perms_encoding(const cap_register_t *c)
+{
+    /* TODO: implement this for the RISC-V standard. */
+    return !valid_ap(cap_get_all_perms(c));
+}
+
 
 // Check if num_bytes bytes at addr can be read using capability c
 static inline bool cap_is_in_bounds(const cap_register_t *c, target_ulong addr,
