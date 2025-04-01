@@ -682,7 +682,7 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
 
 #ifdef TARGET_RISCV
     /* New behaviour in the RISC-V standard (no longer reads ddc): */
-    if (cb == 0 && !env_archcpu(env)->cfg.ext_cheri) {
+    if (cb == 0) {
         /* If cs1 is the NULL register, we copy cs2 to cd and clear cd's tag. */
         result.cr_tag = false;
         update_capreg(env, cd, &result);
