@@ -491,13 +491,13 @@ void CHERI_HELPER_IMPL(cinvoke(CPUArchState *env, uint32_t code_regnum,
                !cap_is_sealed_with_type(code_cap)) {
         raise_cheri_exception(env, CapEx_TypeViolation, CapExType_InstrAccess,
                               code_regnum);
-#endif
     } else if (!cap_has_perms(code_cap, CAP_PERM_CINVOKE)) {
         raise_cheri_exception(env, CapEx_PermitCCallViolation,
                               CapExType_InstrAccess, code_regnum);
     } else if (!cap_has_perms(data_cap, CAP_PERM_CINVOKE)) {
         raise_cheri_exception(env, CapEx_PermitCCallViolation,
                               CapExType_InstrAccess, data_regnum);
+#endif
     } else if (!cap_has_perms(code_cap, CAP_PERM_EXECUTE)) {
         raise_cheri_exception(env, CapEx_PermitExecuteViolation,
                               CapExType_InstrAccess, code_regnum);
