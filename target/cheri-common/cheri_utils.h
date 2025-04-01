@@ -234,7 +234,6 @@ static inline bool cap_is_sealed_with_reserved_otype(const cap_register_t *c)
     return cap_otype_is_reserved(otype) && otype != CAP_OTYPE_UNSEALED;
 }
 
-#if CAP_CC(FIELD_OTYPE_USED) == 1
 static inline bool cap_is_sealed_with_type(const cap_register_t *c)
 {
     /* cap_otype_is_reserved() returns true for unsealed capabilities. */
@@ -289,64 +288,6 @@ static inline void cap_make_sealed_entry(cap_register_t *c)
            "Should only be used with unsealed capabilities");
     CAP_cc(update_otype)(c, CAP_OTYPE_SENTRY);
 }
-
-#else
-
-/* If the otype field is not used, we have bakewell's sealed bit. */
-static inline bool cap_is_unsealed(const cap_register_t *c)
-{
-    return !CAP_cc(get_sealed)(c);
-}
-
-static inline bool cap_is_sealed_with_type(const cap_register_t *c)
-{
-    /*
-     * Cheri bakewell has no concept of "sealed with a specific otype".
-     *
-     * For bakewell, the only real user is cheri_jump_and_link_checked()
-     * else if (cap_is_sealed_with_type(target) || ...) {
-     *    ... throw "Seal Violation" exception
-     *
-     * If we defined cap_is_sealed_with_type to be equivalent to "capability
-     * is sealed", we'd get a seal violation exception for every jump that
-     * uses a sealed capability.
-     *
-     * Let's return false here and disable the special case in the check above.
-     */
-    return false;
-}
-
-static inline void cap_set_sealed(cap_register_t *c, uint32_t type)
-{
-    CAP_cc(update_sealed)(c, 1);
-}
-
-static inline void cap_set_unsealed(cap_register_t *c)
-{
-    CAP_cc(update_sealed)(c, 0);
-}
-
-static inline bool cap_is_sealed_entry(const cap_register_t *c)
-{
-    /* Cheri bakewell does not distinguish between sealed and sealed entry. */
-    return !cap_is_unsealed(c);
-}
-
-static inline void cap_unseal_reserved_otype(cap_register_t *c)
-{
-    cap_set_unsealed(c);
-}
-
-static inline void cap_unseal_entry(cap_register_t *c)
-{
-    cap_set_unsealed(c);
-}
-
-static inline void cap_make_sealed_entry(cap_register_t *c)
-{
-    cap_set_sealed(c, SEALED_TYPE_UNUSED);
-}
-#endif
 
 /*
  * Check if cr_arch_perm contains a valid set of bakewell architectural
