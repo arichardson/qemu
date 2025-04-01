@@ -71,9 +71,10 @@
 #define PRINT_CAP_FMTSTR_L1 \
     "v:%d p:%2x t:%d b:" TARGET_FMT_lx " a:" TARGET_FMT_lx \
     " t:" TARGET_FMT_lx
-#define PRINT_CAP_ARGS_L1(cr) \
-    (cr)->cr_tag, cap_get_all_perms(cr), !cap_get_otype_unsigned(cr), \
-    cap_get_base(cr), cap_get_cursor(cr), cap_get_top(cr)
+#define PRINT_CAP_ARGS_L1(cr)                                                  \
+    (cr)->cr_tag, (unsigned)cap_get_all_perms(cr),                             \
+        !cap_get_otype_unsigned(cr), cap_get_base(cr), cap_get_cursor(cr),     \
+        cap_get_top(cr)
 
 #define COMBINED_PERMS_VALUE(unused) 0
 #define PRINT_CAP_FMTSTR_L2 "%s"
