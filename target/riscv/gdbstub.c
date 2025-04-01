@@ -237,7 +237,6 @@ static struct SCR {
     { .index = CheriSCR_STDC, .name = "stdc"},
 
     { .index = CheriSCR_MTDC, .name = "mtdc"},
-    { .index = CheriSCR_MEPCC, .name = "mepcc", .code = true },
 };
 
 static int riscv_gdb_get_scr(CPURISCVState *env, GByteArray *buf, int n)
