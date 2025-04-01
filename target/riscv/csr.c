@@ -1846,17 +1846,17 @@ static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
 {
     switch (index) {
     case CSR_MSCRATCHC:
-        return &env->MScratchC;
+        return &env->mscratchc;
     case CSR_MTVECC:
         return &env->MTVECC;
     case CSR_STVECC:
         return &env->STVECC;
     case CSR_MEPCC:
-        return &env->MEPCC;
+        return &env->mepcc;
     case CSR_SEPCC:
-        return &env->SEPCC;
+        return &env->sepcc;
     case CSR_SSCRATCHC:
-        return &env->SScratchC;
+        return &env->sscratchc;
     case CSR_DSCRATCH0C:
         return &env->dscratch0c;
     case CSR_DSCRATCH1C:
@@ -1870,11 +1870,11 @@ static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
     case CSR_DINFC:
         assert(false && "Should never be called to get &dinfc");
     case CSR_MTDC:
-        return &env->MTDC;
+        return &env->mtdc;
     case CSR_STDC:
-        return &env->STDC;
+        return &env->stdc;
     case CSR_DDC:
-        return &env->DDC;
+        return &env->ddc;
     default:
         assert(false && "Should have raised an invalid inst trap!");
     }
