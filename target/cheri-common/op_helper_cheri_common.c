@@ -989,8 +989,7 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
 {
     const cap_register_t *cbp = get_readonly_capreg(env, cs1);
     /* We do not touch the M bit here, don't copy it into perms. */
-    uint32_t perms =
-        ((cap_get_sdp(cbp) << 16) | (cbp->cr_arch_perm & ~CAP_AP_M)) & rs1;
+    uint32_t perms = cap_get_all_perms(cbp);
     cap_register_t result = *cbp;
 
     /* see the comment about capmode in the gcperm helper */
@@ -1048,26 +1047,7 @@ void CHERI_HELPER_IMPL(acperm(CPUArchState *env, uint32_t cd, uint32_t cs1,
     }
 #endif
 
-    /*
-     * All unused bits in perms are 0, we don't have to mask out higher
-     * bits above the sdp field.
-     */
-    CAP_cc(update_sdp)(&result, perms >> 16);
-
-    /*
-     * Update result's C, W, R, X, ASR to match the bits in perm.
-     * Yet again, this leaves result's M bit alone.
-     */
-    result.cr_arch_perm &=
-        ~(CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X | CAP_AP_ASR);
-    result.cr_arch_perm |=
-        perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X | CAP_AP_ASR);
-
-    /*
-     * Sync the AP field with th cr_arch_perm update.
-     * TODO: should compress_raw call ap_compress internally?
-     */
-    CAP_cc(ap_compress)(&result);
+    cap_set_perms(&result, perms);
 
     update_capreg(env, cd, &result);
 }
