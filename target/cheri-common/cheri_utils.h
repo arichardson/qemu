@@ -286,6 +286,7 @@ static inline void cap_make_sealed_entry(cap_register_t *c)
     CAP_cc(update_otype)(c, CAP_OTYPE_SENTRY);
 }
 
+#ifdef TARGET_CHERI_RISCV_STD
 /*
  * Check if cr_m, cr_arch_perm contain a valid set of risc-v cheri
  * mode and architectural permissions that could have been produced
@@ -293,7 +294,6 @@ static inline void cap_make_sealed_entry(cap_register_t *c)
  */
 static inline bool valid_m_ap(uint8_t cr_m, uint8_t cr_arch_perm)
 {
-#ifdef TARGET_CHERI_RISCV_STD
     /* "ASR permission cannot be set without X permission" */
     if ((cr_arch_perm & (CAP_AP_ASR | CAP_AP_X)) == CAP_AP_ASR) {
         return false;
@@ -345,9 +345,58 @@ static inline bool valid_m_ap(uint8_t cr_m, uint8_t cr_arch_perm)
         return false;
     }
 #endif
-#endif
     return true;
 }
+
+/*
+ * update cap's M and AP to a valid set that could be produced by acperm
+ */
+static inline void sanitize_m_ap(cap_register_t *cap, target_ulong perms)
+{
+    /* "Clear ASR-permission unless X-permission is set" */
+    if (!(perms & CAP_AP_X)) {
+        perms &= ~CAP_AP_ASR;
+        /* TODO: ASR might already be 0 - then this is no change */
+    }
+
+    /* "Clear C-permission unless R-permission or W-permission are set" */
+    if (!(perms & (CAP_AP_R|CAP_AP_W))) {
+        perms &= ~CAP_AP_C;
+    }
+
+    /*
+     * "M-bit cannot be set without X-permission being set"
+     *
+     * If a capability grants no execution permission, M is effectively
+     * undefined and must be set to 0. This is unrelated to the values
+     * for capability/integer pointer mode.
+     */
+    if (!(perms & CAP_AP_X)) {
+        cap_set_exec_mode(cap, 0);
+    }
+
+#if CAP_CC(ADDR_WIDTH) == 32
+    /* "Clear ASR-permission unless all other permissions are set." */
+    if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) !=
+            (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) {
+        perms &= ~CAP_AP_ASR;
+    }
+    /* "Clear C-permission and X-permission if R-permission is not set" */
+    if (!(perms & CAP_AP_R)) {
+        perms &= ~(CAP_AP_X | CAP_AP_C);
+    }
+    /*
+     * "Clear X-permission if X-permission and R-permission are set, but
+     * C-permission and W-permission are not set"
+     */
+    if ((perms & (CAP_AP_C | CAP_AP_W | CAP_AP_R | CAP_AP_X)) ==
+            (CAP_AP_X | CAP_AP_R)) {
+        perms &= ~CAP_AP_X;
+    }
+#endif
+    cap_set_perms(cap, perms);
+}
+#endif
 
 /**
  * Returns true if the permissions encoding in @p c could not have been
