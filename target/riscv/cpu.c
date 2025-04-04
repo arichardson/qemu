@@ -786,13 +786,11 @@ static void riscv_cpu_reset(DeviceState *dev)
         cap_set_exec_mode(&env->pcc, CHERI_EXEC_INTMODE);
     }
     set_max_perms_capability(env, &env->ddc, 0);
-    null_capability(&env->utidc);
     // Supervisor mode trap handling
     set_max_perms_capability(env, &env->stvecc, 0);
     null_capability(&env->stdc);
     null_capability(&env->sscratchc);
     set_max_perms_capability(env, &env->sepcc, 0);
-    null_capability(&env->stidc);
     // Machine mode trap handling
     set_max_perms_capability(env, &env->mtvecc,0);
     null_capability(&env->mtdc);
@@ -800,7 +798,12 @@ static void riscv_cpu_reset(DeviceState *dev)
     set_max_perms_capability(env, &env->mepcc, 0);
     null_capability(&env->mtidc);
 
-    null_capability(&env->jvtc);
+  null_capability(&env->utidc);
+  null_capability(&env->stidc);
+  null_capability(&env->vstidc);
+  null_capability(&env->mtidc);
+
+  null_capability(&env->jvtc);
 #endif /* TARGET_CHERI */
 #ifdef CONFIG_DEBUG_TCG
     env->_pc_is_current = true;

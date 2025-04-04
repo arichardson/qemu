@@ -1842,6 +1842,8 @@ static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
         return &env->stidc;
     case CSR_UTIDC:
         return &env->utidc;
+    case CSR_VSTIDC:
+        return &env->vstidc;
     default:
         assert(false && "Should have raised an invalid inst trap!");
     }
@@ -2152,6 +2154,7 @@ bool csr_needs_asr(int csrno, bool is_write)
     case CSR_STIDC:
     case CSR_MTIDC:
     case CSR_UTIDC:
+    case CSR_VSTIDC:
         return is_write; /* the TID registers only require asr for writes */
     default:
         return get_field(csrno, 0x300) != 0;
@@ -2613,8 +2616,10 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
     { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG},
+      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "utidc", CSR_UTIDC, read_capcsr_reg, write_cap_csr_reg,
+      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+    { "vstidc", CSR_VSTIDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
 };
 
