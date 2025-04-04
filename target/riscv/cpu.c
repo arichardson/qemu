@@ -1034,7 +1034,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
      * the v0.9.0 switch takes precedence.
      */
     if (cpu->cfg.cheri_v090) {
-        cpu->cfg.m_flip = false;
+        cpu->cfg.scmode_flip = false;
     }
 #endif
 
