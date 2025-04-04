@@ -96,6 +96,7 @@ scbnds  0000111  ..... ..... 000 ..... 0110011 @ccr ?pred_cre
 scbndsr 0000111  ..... ..... 001 ..... 0110011 @ccr ?pred_cre
 scmode  0000110  ..... ..... 111 ..... 0110011 @ccr ?pred_cre ?pred_hybrid
 
+amoswap_c   00001 . . ..... ..... 100 ..... 0101111 @atom_st ?pred_cre
 
 ### Two operands (source and dest)
 # ISAv9 instruction

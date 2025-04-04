@@ -852,7 +852,7 @@ TRANS_STUB(sc)
 TRANS_STUB(caddi)
 TRANS_STUB(lr_c)
 TRANS_STUB(sc_c)
-TRANS_STUB(amoswap_c)
+TRANS_STUB(scbndsi)
 #endif
 
 static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
