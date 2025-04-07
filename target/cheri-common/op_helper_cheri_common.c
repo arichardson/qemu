@@ -684,7 +684,7 @@ void CHERI_HELPER_IMPL(cbuildcap(CPUArchState *env, uint32_t cd, uint32_t cb,
                cap_get_all_perms(ctp)) {
         raise_cheri_exception_or_invalidate(env, CapEx_UserDefViolation,
                                             CapExType_Data, cb);
-    } else if (!cap_has_invalid_perms_encoding(env, ctp)) {
+    } else if (cap_has_invalid_perms_encoding(env, ctp)) {
         /* TODO: CapEx_PermissionViolation */
         raise_cheri_exception_or_invalidate(env, CapEx_UserDefViolation,
                                             CapExType_Data, ct);
