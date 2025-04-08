@@ -255,7 +255,7 @@ static inline target_long cap_get_otype_signext(const cap_register_t *c)
      */
     return result < CAP_CC(MIN_RESERVED_OTYPE)
                ? result
-               : result - CAP_MAX_REPRESENTABLE_OTYPE - 1;
+               : result - (CAP_MAX_REPRESENTABLE_OTYPE - 1);
 #endif
 }
 
