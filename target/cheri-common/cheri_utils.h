@@ -249,13 +249,14 @@ static inline target_long cap_get_otype_signext(const cap_register_t *c)
      */
     return result;
 #else
+    /* Silence -Wtype-limits by using an intermediate variable. */
+    target_ulong min = CAP_CC(MIN_RESERVED_OTYPE);
+
     /*
      * We "sign" extend to a 64-bit number by subtracting the maximum:
      * e.g. for 64-bit CHERI-RISC-V unsigned 2^18-1 maps to 2^64-1
      */
-    return result < CAP_CC(MIN_RESERVED_OTYPE)
-               ? result
-               : result - (CAP_MAX_REPRESENTABLE_OTYPE - 1);
+    return result < min ? result : result - (CAP_MAX_REPRESENTABLE_OTYPE - 1);
 #endif
 }
 
