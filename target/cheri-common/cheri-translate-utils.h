@@ -127,6 +127,8 @@ _gen_cap_check(rmw)
 
 #elif defined(TARGET_RISCV)
 
+TCGv get_gpr(DisasContext *ctx, int reg_num, DisasExtend ext);
+
 #define DDC_ENV_OFFSET offsetof(CPUArchState, ddc)
 #define target_get_gpr_global(ctx, reg) get_gpr(ctx, reg, EXT_NONE)
 #define target_get_gpr(ctx, t, reg) gen_get_gpr(ctx, (TCGv)t, reg)
