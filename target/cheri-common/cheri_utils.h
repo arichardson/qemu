@@ -615,7 +615,7 @@ static inline cap_register_t *cap_mark_unrepresentable(target_ulong addr,
      * from the cpu configuration would need lots of refactoring.
      */
     uint8_t lvbits = CAP_CC(MANDATORY_LEVEL_BITS);
-#ifdef TARGET_RISCV
+#ifdef TARGET_CHERI_RISCV_STD
     lvbits = cr->cr_lvbits;
 #endif
     CAP_cc(decompress_raw_ext)(cr->cr_pesbt, addr, false, lvbits, cr);
