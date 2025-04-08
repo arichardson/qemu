@@ -231,7 +231,7 @@ static inline const char* cheri_cause_str(CheriCapExcCause cause) {
     case CapEx_TagViolation: return "Tag Violation";
     case CapEx_SealViolation: return "Seal Violation";
     case CapEx_LengthViolation: return "Length Violation";
-#ifdef TARGET_RISCV
+#ifdef TARGET_CHERI_RISCV_STD
     case CapEx_PermissionViolation: return "Permission Violation";
     case CapEx_AddressViolation: return "Address Violation";
 #else
