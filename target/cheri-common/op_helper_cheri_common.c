@@ -436,9 +436,11 @@ void cheri_jump_and_link_checked(CPUArchState *env, uint32_t link_reg,
     } else if (!cap_has_perms(target, CAP_PERM_EXECUTE)) {
         raise_cheri_exception(env, CapEx_PermitExecuteViolation,
                               CapExType_Branch, target_reg);
+#ifndef TARGET_CHERI_RISCV_STD
     } else if (!cap_has_perms(target, CAP_PERM_GLOBAL)) {
         raise_cheri_exception(env, CapEx_GlobalViolation, CapExType_Branch,
                               target_reg);
+#endif
     } else if (!validate_jump_target(env, target, target_addr, target_reg,
                                      _host_return_address)) {
         assert(false && "Should have raised an exception");
