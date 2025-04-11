@@ -490,56 +490,11 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
 }
 
 #ifdef TARGET_CHERI
-/*
-These functions generate the tcg code for csr acceses.
-As it stands these will not work correctly with the capability ones as they are only expecting 64/32 bit words
-To fix this we will need tcg to use 128 bit types....
-The trans_xxx in the cheri functions which deal with capabilities do not try and manipulate them in tcg, but instead pass the register number into their handler.
-We will need to do this for ours as well.
-
-
-Are we able to use a->rd, and a-> rs to determine if they are capabilities, provide correct pre/post code and dispatch to an appropriate handler (i/e one that expects indices of caps rather than pointers)
-
-*/
-
-
 static bool is_cap_csr(int csrno)
 {
-    switch (csrno)
-    {
-        case CSR_DPCC:
-        case CSR_DSCRATCH0C:
-        case CSR_DSCRATCH1C:
-        case CSR_MTVECC:
-        case CSR_MSCRATCHC:
-        case CSR_MEPCC:
-        case CSR_STVECC:
-        case CSR_SSCRATCHC:
-        case CSR_SEPCC:
-        case CSR_DDDC:
-        case CSR_MTDC:
-        case CSR_STDC:
-        case CSR_DDC:
-        case CSR_DINFC:
-        case CSR_DPC:
-        case CSR_MTVEC:
-        case CSR_MSCRATCH:
-        case CSR_MEPC:
-        case CSR_STVEC:
-        case CSR_SSCRATCH:
-        case CSR_SEPC:
-            return true;
-        default:
-            return false;
-    }
-
-
+    return get_csr_cap_info(csrno) != NULL;
 }
-
-
-/*
-TODO: PB Inovke relevant csrxx_cap variants
-*/
+#endif
 
 static bool do_csr_post(DisasContext *ctx)
 {
@@ -554,6 +509,7 @@ static bool do_csrr(DisasContext *ctx, int rd, int rc)
 {
     TCGv dest = dest_gpr(ctx, rd);
     TCGv_i32 csr = tcg_constant_i32(rc);
+    tcg_debug_assert(!is_cap_csr(rc));
 
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
@@ -566,6 +522,7 @@ static bool do_csrr(DisasContext *ctx, int rd, int rc)
 static bool do_csrw(DisasContext *ctx, int rc, TCGv src)
 {
     TCGv_i32 csr = tcg_constant_i32(rc);
+    tcg_debug_assert(!is_cap_csr(rc));
 
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
@@ -578,6 +535,7 @@ static bool do_csrrw(DisasContext *ctx, int rd, int rc, TCGv src, TCGv mask)
 {
     TCGv dest = dest_gpr(ctx, rd);
     TCGv_i32 csr = tcg_constant_i32(rc);
+    tcg_debug_assert(!is_cap_csr(rc));
 
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
@@ -591,10 +549,6 @@ static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
 {
 #ifdef TARGET_CHERI
     if (is_cap_csr(a->csr)) {
-        // currently this is not appropriate as the behaviour is expected the
-        // helper function to return the register value and then the post code
-        // moves this into the rd register. This is not the way that we can do
-        // directly. Need to look at how this is handled elsewhere.
         gen_helper_csrrw_cap(cpu_env, tcg_constant_i32(a->csr),
                              tcg_constant_i32(a->rd), tcg_constant_i32(a->rs1));
         return true;
