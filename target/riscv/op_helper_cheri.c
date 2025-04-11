@@ -167,9 +167,6 @@ static RISCVException check_csr_cap_permissions(CPURISCVState *env, int csrno,
     }
 #endif
 
-    if (csr_cap_info->require_cre && ! riscv_cpu_mode_cre(env)){
-        return RISCV_EXCP_ILLEGAL_INST;
-    }
     return RISCV_EXCP_NONE;
 }
 
@@ -215,7 +212,6 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
         write_capmode_reg(env, csr_cap, rd);
     }
 
-    cheri_log_instr_changed_capreg(env, csr_cap_info->name, &rs_cap);
     csr_cap_info->write(env, &rs_cap);
 }
 
@@ -225,7 +221,6 @@ void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     RISCVException ret;
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
     cap_register_t csr_cap;
-
 
     assert(csr_cap_info);
 
@@ -352,8 +347,7 @@ void HELPER(csrrsi_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     if (rs1_val) {
         target_ulong new_val;
         new_val = cap_get_cursor(&csr_cap ) | rs1_val;
-        update_special_register(env, &csr_cap, csr_cap_info->name, new_val);
-        csr_cap_info->write(env, &csr_cap);
+        csr_cap_info->write(env, csr_cap_info, csr_cap, new_val, false);
     }
     if (rd) {
         if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
@@ -390,8 +384,7 @@ void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     if (rs1_val) {
         target_ulong new_val;
         new_val = cap_get_cursor(&csr_cap) & (~rs1_val);
-        update_special_register(env, &csr_cap, csr_cap_info->name, new_val);
-        csr_cap_info->write(env, &csr_cap);
+        csr_cap_info->write(env, csr_cap_info, csr_cap, new_val, false);
     }
     if (rd) {
         if (csr_cap_info->flags & CSR_OP_EXTENDED_REG) {
