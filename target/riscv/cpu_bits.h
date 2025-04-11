@@ -285,7 +285,6 @@
 #define CSR_VSTIDC          CSR_VSTID
 #define CSR_UTID            0x480
 #define CSR_UTIDC           CSR_UTID
-#endif
 
 #endif
 
