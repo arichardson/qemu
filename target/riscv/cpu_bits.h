@@ -162,9 +162,9 @@
 
 #ifdef TARGET_CHERI
 /* Machine trap setup,scratch and handling capabilities*/
-#define CSR_MTVECC          0x305
-#define CSR_MSCRATCHC       0x340
-#define CSR_MEPCC           0x341
+#define CSR_MTVECC          CSR_MTVEC
+#define CSR_MSCRATCHC       CSR_MSCRATCH
+#define CSR_MEPCC           CSR_MEPC
 #endif
 
 /* Supervisor Trap Setup */
@@ -184,9 +184,9 @@
 
 #ifdef TARGET_CHERI
 /* Supervisor trap setup, scratch and handling */
-#define CSR_STVECC          0x105
-#define CSR_SSCRATCHC       0x140
-#define CSR_SEPCC           0x141
+#define CSR_STVECC          CSR_STVEC
+#define CSR_SSCRATCHC       CSR_SSCRATCH
+#define CSR_SEPCC           CSR_SEPC
 #endif
 
 /* Supervisor Protection and Translation */
@@ -209,7 +209,6 @@
 #define CSR_HTIMEDELTA      0x605
 #define CSR_HTIMEDELTAH     0x615
 
-
 /* Virtual CSRs */
 #define CSR_VSSTATUS        0x200
 #define CSR_VSIE            0x204
@@ -228,7 +227,6 @@
 #define CSR_STVAL2          0x14b
 #define CSR_VSTVAL2         0x24b
 #endif
-
 
 #define CSR_MTINST          0x34a
 #define CSR_MTVAL2          0x34b
@@ -267,40 +265,39 @@
 /* Debug Mode Registers */
 #define CSR_DCSR            0x7b0
 #define CSR_DPC             0x7b1
-#define CSR_DSCRATCH0        0x7b2
-#define CSR_DSCRATCH1        0x7b3
+#define CSR_DSCRATCH0       0x7b2
+#define CSR_DSCRATCH1       0x7b3
 
 #ifdef TARGET_CHERI
-/* CHERI Debug mode capabilities */
-#define CSR_DPCC            0x7b1
-#define CSR_DSCRATCH0C      0x7b2
-#define CSR_DSCRATCH1C      0x7b3
-#define CSR_DSCRATCH1C      0x7b3
-
-/* CHERI default and infinite capabiltiies used for legacy mode*/
-#define CSR_DDC             0x416
-#define CSR_DDDC            0x7bc
 /*
- * We removed support for CSR_DINFC (0x7bd). DINFC can be accessed only in
- * risc-v debug mode. qemu does not implement debug mode (qemu's gdbserver
- * uses qemu's internal mechanisms for stopping a vm or setting breakpoints).
+ * CHERI Debug mode capability CSRs.
+ * Note: Qemu does not implement debug mode (Qemu's gdbserver uses Qemu's
+ * internal mechanisms for stopping a vm or setting breakpoints), so there is
+ * no internal storage or access mechanism for these registers.
  */
+#define CSR_DPCC            CSR_DPC
+#define CSR_DSCRATCH0C      CSR_DSCRATCH0
+#define CSR_DSCRATCH1C      CSR_DSCRATCH1
+#define CSR_DDDC            0x7bc
+#define CSR_DINFC           0x7bd
 
 /* CHERI Jump Vector Table Capability*/
 #define CSR_JVTC            0x017
 
-/* CHERI Zstid  thread ID registers*/
-#define CSR_MTIDC           0x780
-#define CSR_STIDC           0x580
-#define CSR_UTIDC           0x480
-#define CSR_VSTIDC          0xa80
-#endif
+/* CHERI default data capability */
+#define CSR_DDC             0x416
 
-/* Non CHERI Zstidc defines for the zstidc registers */
-#define CSR_MTID           0x780
-#define CSR_STID           0x580
-#define CSR_UTID           0x480
-#define CSR_VSTID          0xa80
+/* CHERI thread ID registers*/
+#define CSR_MTID            0x780
+#define CSR_MTIDC           CSR_MTID
+#define CSR_STID            0x580
+#define CSR_STIDC           CSR_STID
+#define CSR_VSTID           0xa80
+#define CSR_VSTIDC          CSR_VSTID
+#define CSR_UTID            0x480
+#define CSR_UTIDC           CSR_UTID
+
+#endif
 
 /* Performance Counters */
 #define CSR_MHPMCOUNTER3    0xb03
@@ -392,9 +389,17 @@
 #define CSR_MHPMCOUNTER31H  0xb9f
 
 #ifdef TARGET_CHERI
+#define CSR_UCCSR           0x8C0
+#define CSR_SCCSR           0x9C0
+#define CSR_MCCSR           0xBC0
+
 /* See Capability Control and Status Registers (CCSRs) in CHERI ISA spec. */
+#define XCCSR_ENABLE        0x1 /* Capability extensions enabled */
+#define XCCSR_DIRTY         0x2 /* Capability register written */
 #define SCCSR_SGCLG         0x4 /* Supervisor Global Cap Load Generation */
 #define SCCSR_UGCLG         0x8 /* User Global Cap Load Generation */
+#define XCCSR_NO_RELOCATION 0x40000000 /* CHERI without DDC/PCC relocation. */
+#define XCCSR_TAG_CLEARING  0x80000000 /* CHERI has tag-clearing semantics. */
 #endif
 
 /*

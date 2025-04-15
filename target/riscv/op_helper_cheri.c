@@ -97,8 +97,22 @@ struct SCRInfo {
 
     [CheriSCR_UTIDC] = {.r = true, .w = true, .access = U_ASR_W, .name = "UTIDC"},
 
+    [CheriSCR_STCC] = {.r = true, .w = true, .access = S_ASR_RW, .name = "STCC"},
+    [CheriSCR_STDC] = {.r = true, .w = true, .access = S_ASR_RW, .name = "STDC"},
+    [CheriSCR_SScratchC] = {.r = true,
+                            .w = true,
+                            .access = S_ASR_RW,
+                            .name = "SScratchC"},
+    [CheriSCR_SEPCC] = {.r = true, .w = true, .access = S_ASR_RW, .name = "SEPCC"},
     [CheriSCR_STIDC] = {.r = true, .w = true, .access = S_ASR_W, .name = "STIDC"},
 
+    [CheriSCR_MTCC] = {.r = true, .w = true, .access = M_ASR_RW, .name = "MTCC"},
+    [CheriSCR_MTDC] = {.r = true, .w = true, .access = M_ASR_RW, .name = "MTDC"},
+    [CheriSCR_MScratchC] = {.r = true,
+                            .w = true,
+                            .access = M_ASR_RW,
+                            .name = "MScratchC"},
+    [CheriSCR_MEPCC] = {.r = true, .w = true, .access = M_ASR_RW, .name = "MEPCC"},
     [CheriSCR_MTIDC] = {.r = true, .w = true, .access = M_ASR_W, .name = "MTIDC"},
 
     [CheriSCR_VSTCC] = {.r = true, .w = true, .access = H_ASR_RW, .name = "VSTCC"},
@@ -172,7 +186,7 @@ write_capmode_reg(CPUArchState *env, cap_register_t cap, uint32_t regnum)
 }
 
 void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
-                        uint32_t rs1)
+                       uint32_t rs1)
 {
     cap_register_t rs_cap;
     RISCVException ret;
@@ -192,7 +206,7 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                                    true, GETPC());
     }
 
-    rs_cap = *get_readonly_capreg(env,rs1);
+    rs_cap = *get_readonly_capreg(env, rs1);
     if (rd) {
         csr_cap = csr_cap_info->read(env, csr_cap_info);
         write_capmode_reg(env, csr_cap, rd);
@@ -204,8 +218,7 @@ void HELPER(csrrw_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
 
 static inline void
 do_csr_set_clear(CPUArchState *env, uint32_t csr, uint32_t rd, bool is_clear,
-                 target_ulong operand, // Value from rs1 cursor or immediate
-                 bool perform_write, uintptr_t hostpc)
+                 target_ulong operand, bool perform_write, uintptr_t hostpc)
 {
     riscv_csr_cap_ops *csr_cap_info = get_csr_cap_info(csr);
 
@@ -244,7 +257,6 @@ do_csr_set_clear(CPUArchState *env, uint32_t csr, uint32_t rd, bool is_clear,
         }
     }
 }
-
 void HELPER(csrrs_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
                        uint32_t rs1)
 {
@@ -308,7 +320,6 @@ void HELPER(csrrci_cap)(CPUArchState *env, uint32_t csr, uint32_t rd,
     do_csr_set_clear(env, csr, rd, /**is_clear=*/true, uimm,
                      /**perform_write=*/uimm != 0, GETPC());
 }
-
 
 void HELPER(cspecialrw)(CPUArchState *env, uint32_t cd, uint32_t cs,
                         uint32_t index)

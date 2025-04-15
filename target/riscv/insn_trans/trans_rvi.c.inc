@@ -497,6 +497,7 @@ static bool do_csrr(DisasContext *ctx, int rd, int rc)
 {
     TCGv dest = dest_gpr(ctx, rd);
     TCGv_i32 csr = tcg_constant_i32(rc);
+    tcg_debug_assert(!is_cap_csr(rc));
 
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
@@ -509,6 +510,7 @@ static bool do_csrr(DisasContext *ctx, int rd, int rc)
 static bool do_csrw(DisasContext *ctx, int rc, TCGv src)
 {
     TCGv_i32 csr = tcg_constant_i32(rc);
+    tcg_debug_assert(!is_cap_csr(rc));
 
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
@@ -521,6 +523,7 @@ static bool do_csrrw(DisasContext *ctx, int rd, int rc, TCGv src, TCGv mask)
 {
     TCGv dest = dest_gpr(ctx, rd);
     TCGv_i32 csr = tcg_constant_i32(rc);
+    tcg_debug_assert(!is_cap_csr(rc));
 
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
@@ -534,10 +537,6 @@ static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
 {
 #ifdef TARGET_CHERI
     if (is_cap_csr(a->csr)) {
-        // currently this is not appropriate as the behaviour is expected the
-        // helper function to return the register value and then the post code
-        // moves this into the rd register. This is not the way that we can do
-        // directly. Need to look at how this is handled elsewhere.
         gen_helper_csrrw_cap(cpu_env, tcg_constant_i32(a->csr),
                              tcg_constant_i32(a->rd), tcg_constant_i32(a->rs1));
         return true;

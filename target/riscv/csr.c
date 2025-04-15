@@ -66,27 +66,7 @@ void riscv_log_instr_csr_changed(CPURISCVState *env, int csrno)
 #ifdef TARGET_CHERI
 bool is_cap_csr(int csrno)
 {
-    switch (csrno)
-    {
-        case CSR_DPCC:
-        case CSR_DSCRATCH0C:
-        case CSR_DSCRATCH1C:
-        case CSR_MTVECC:
-        case CSR_MSCRATCHC:
-        case CSR_MEPCC:
-        case CSR_STVECC:
-        case CSR_SSCRATCHC:
-        case CSR_SEPCC:
-        case CSR_DDDC:
-        case CSR_DDC:
-        case CSR_MTIDC:
-        case CSR_STIDC:
-        case CSR_UTIDC:
-        case CSR_VSTIDC:
-            return true;
-        default:
-            return false;
-    }
+    return get_csr_cap_info(csrno) != NULL;
 }
 #endif
 
@@ -1303,14 +1283,14 @@ static RISCVException write_vsstatus(CPURISCVState *env, int csrno,
 
 static RISCVException read_vsscratch(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = env->vsscratch;
+    *val = GET_SPECIAL_REG_ARCH(env, vsscratch, vsscratchc);
     return RISCV_EXCP_NONE;
 }
 
 static RISCVException write_vsscratch(CPURISCVState *env, int csrno,
                                       target_ulong val)
 {
-    env->vsscratch = val;
+    SET_SPECIAL_REG(env, vsscratch, vsscratchc, val);
     return RISCV_EXCP_NONE;
 }
 
@@ -1919,14 +1899,6 @@ static inline cap_register_t *get_cap_csr(CPUArchState *env, uint32_t index)
         return &env->sepcc;
     case CSR_SSCRATCHC:
         return &env->sscratchc;
-    case CSR_DSCRATCH0C:
-        return &env->dscratch0c;
-    case CSR_DSCRATCH1C:
-        return &env->dscratch1c;
-    case CSR_DPCC:
-        return &env->dpcc;
-    case CSR_DDDC:
-        return &env->dddc;
     case CSR_JVTC:
         return &env->jvtc;
     case CSR_DDC:
@@ -1991,7 +1963,7 @@ This depends on the addrress mode
 • For Sv39, bits [63:39] must equal bit 38
 • For Sv48, bits [63:48] must equal bit 47
 • For Sv57, bits [63:57] must equal bit 56
-If address translation is not active or we are using sv32 then treat the address 
+If address translation is not active or we are using sv32 then treat the address
 as valid.
 This only applies for rv64
 */
@@ -2040,8 +2012,8 @@ static inline target_ulong get_valid_cap_address(CPUArchState *env,
 
 /*
 Given a capability and address turn the address into a valid address for that
-capability and return true if the address was changed 
-*/ 
+capability and return true if the address was changed
+*/
 static inline bool validate_cap_address(CPUArchState *env, cap_register_t *cap,
                                         target_ulong *address)
 {
@@ -2183,27 +2155,23 @@ static cap_register_t read_xepcc(CPURISCVState *env,
     return retval;
 }
 
-/*
-Based on csr number and write mask determine if this register access requires
-ASR architectural permissions.
-Privilege mode indicated by bits 9:8 of csrno == 0 from 
-RiscV Instuction Set Volume II, Section 2.1 CSR Address Mapping Conventions
-*/
-bool csr_needs_asr(int csrno, bool write)
+bool csr_needs_asr(int csrno, bool is_write)
 {
-    // based on CSR mapping conventions we can determine if the CSR is
-    // privileged based on either bits 8-9 being set
-    // however utidc is an exception to this instead and is treated as privilged
-    // for asr checks.
-    // in addition we also care about the write mask for the thread id regs
+    /*
+     * Based on CSR number and write mask determineif the CSR is privileged
+     * based on bits 8-9 being set.
+     * See Privileged Spec, Section 2.1 CSR Address Mapping Conventions.
+     * However, the *TID registers behave differently and are readable without
+     * ASR in all privileged levels and require ASR for all writes.
+     */
     switch (csrno) {
     case CSR_STIDC:
     case CSR_MTIDC:
     case CSR_UTIDC:
     case CSR_VSTIDC:
-        return write; // the TID registers only require asr for writes
+        return is_write; /* the TID registers only require asr for writes */
     default:
-        return get_field(csrno, 0x300);
+        return get_field(csrno, 0x300) != 0;
     }
 }
 
@@ -2248,12 +2216,10 @@ static RISCVException write_vstval2(CPURISCVState *env, int csrno,
  * csrrc  <->  riscv_csrrw(env, csrno, ret_value, 0, value);
  */
 
-RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_value,
-                           target_ulong new_value, target_ulong write_mask,
-                           uintptr_t retpc)
+RISCVException riscv_csr_accessible(CPURISCVState *env, int csrno,
+                                    bool is_write)
 {
     RISCVException ret;
-    target_ulong old_value;
     RISCVCPU *cpu = env_archcpu(env);
     int read_only = get_field(csrno, 0xC00) == 3;
 
@@ -2261,8 +2227,7 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_valu
 #if !defined(CONFIG_USER_ONLY)
     int effective_priv = env->priv;
 
-    if (riscv_has_ext(env, RVH) &&
-        env->priv == PRV_S &&
+    if (riscv_has_ext(env, RVH) && env->priv == PRV_S &&
         !riscv_cpu_virt_enabled(env)) {
         /*
          * We are in S mode without virtualisation, therefore we are in HS Mode.
@@ -2276,7 +2241,7 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_valu
         return RISCV_EXCP_ILLEGAL_INST;
     }
 #endif
-    if (write_mask && read_only) {
+    if (is_write && read_only) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -2284,7 +2249,6 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_valu
     if (!cpu->cfg.ext_icsr) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
-
     /* check predicate */
     if (!csr_ops[csrno].predicate) {
         return RISCV_EXCP_ILLEGAL_INST;
@@ -2294,21 +2258,41 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_valu
         return ret;
     }
 
-    // When CHERI is enabled, only certain CSRs can be accessed without the
-    // Access_System_Registers permission in PCC.
+    /*
+     * When CHERI is enabled, only certain CSRs can be accessed without the
+     * Access_System_Registers permission in PCC.
+     * TODO: could merge this with predicate callback?
+     */
 #ifdef TARGET_CHERI
-    if (!cheri_have_access_sysregs(env) &&
-        csr_needs_asr(csrno, (bool)write_mask)) {
+    if (!cheri_have_access_sysregs(env) && csr_needs_asr(csrno, is_write)) {
 #if !defined(CONFIG_USER_ONLY)
         if (env->debugger) {
             return RISCV_EXCP_INST_ACCESS_FAULT;
         }
-        raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   CapExType_InstrAccess, /*regnum=*/0, 0, true,
-                                   retpc);
+        return RISCV_EXCP_CHERI;
 #endif
     }
 #endif // TARGET_CHERI
+    return RISCV_EXCP_NONE;
+}
+
+RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_value,
+                           target_ulong new_value, target_ulong write_mask,
+                           uintptr_t retpc)
+{
+    RISCVException ret;
+    target_ulong old_value;
+
+    /* check privileges and return RISCV_EXCP_ILLEGAL_INST if check fails */
+    ret = riscv_csr_accessible(env, csrno, write_mask);
+    if (ret != RISCV_EXCP_NONE) {
+#ifdef TARGET_CHERI
+        if (ret == RISCV_EXCP_CHERI)
+            raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
+                                       CapExType_InstrAccess, /*regnum=*/0, 0, true, retpc);
+#endif
+        return ret;
+    }
 
     /* execute combined read/write operation if it exists */
     if (csr_ops[csrno].op) {
@@ -2529,7 +2513,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
 #ifdef TARGET_CHERI
     [CSR_MTVAL2] =              CSR_OP_RW(any, mtval2),
-#else 
+#else
     [CSR_MTVAL2] =              CSR_OP_RW(hmode, mtval2),
 #endif
     [CSR_MTINST] =              CSR_OP_RW(hmode, mtinst),
@@ -2601,9 +2585,11 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 };
 
 #ifdef TARGET_CHERI
-// We don't have as many CSR CAP Ops, and haven't fully defined what we need in the table, so don't bother 
-// with macros for this
-
+/*
+ * We don't have as many CSR Cap ops, and haven't fully defined what we need in
+ * the table, so keep this table separate instead of merging it into the main
+ * table for now.
+ */
 static riscv_csr_cap_ops csr_cap_ops[] = {
     { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
@@ -2617,16 +2603,8 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
       CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG },
     { "sscratchc", CSR_SSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
-    { "dscratch0c", CSR_DSCRATCH0C, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
-    { "dscratch1c", CSR_DSCRATCH1C, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
-    { "dpcc", CSR_DPCC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG },
-    { "dddc", CSR_DDDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
     { "jvtc", CSR_JVTC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG },
+    CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG },
     { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_REQUIRE_CRE | CSR_OP_IA_CONVERSION },
     { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg,
@@ -2641,14 +2619,10 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
 
 riscv_csr_cap_ops *get_csr_cap_info(uint32_t csrnum)
 {
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(csr_cap_ops); i++) {
+    for (int i = 0; i < ARRAY_SIZE(csr_cap_ops); i++) {
       if (csr_cap_ops[i].reg_num == csrnum)
           return &csr_cap_ops[i];
     }
-
     return NULL;
 }
 #endif
-

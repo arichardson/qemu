@@ -212,19 +212,20 @@ struct CPURISCVState {
 #endif
 
 #ifdef TARGET_CHERI
-    cap_register_t sscratchc; // SCR 14 Supervisor scratch cap. (sscratchc)
-    cap_register_t sepcc;     // SCR 15 Supervisor exception PC cap. (sepcc)
-    cap_register_t stvecc;
+    cap_register_t stvecc;    // SCR 12 Supervisor trap code cap. (STCC)
+    cap_register_t sscratchc; // SCR 14 Supervisor scratch cap. (SScratchC)
+    cap_register_t sepcc;     // SCR 15 Supervisor exception PC cap. (SEPCC)
 #else
     target_ulong stvec;
     target_ulong sepc;
+    target_ulong sscratch;
 #endif
     target_ulong scause;
 
 #ifdef TARGET_CHERI
-    cap_register_t mscratchc; // SCR 30 Machine scratch cap. (mscratchc)
-    cap_register_t mepcc;     // Machine exception PC cap. (mepcc)
-    cap_register_t mtvecc;
+    cap_register_t mtvecc;    // SCR 28 Machine trap code cap. (MTCC)
+    cap_register_t mscratchc; // SCR 30 Machine scratch cap. (MScratchC)
+    cap_register_t mepcc;     // SCR 31 Machine exception PC cap. (MEPCC)
 #else
     target_ulong mtvec;
     target_ulong mepc;
@@ -251,13 +252,13 @@ struct CPURISCVState {
 #else
     target_ulong vstvec;
     target_ulong vsepc;
+    target_ulong vsscratch;
 #endif
     /*
      * For RV32 this is 32-bit vsstatus and 32-bit vsstatush.
      * For RV64 this is a 64-bit vsstatus.
      */
     uint64_t vsstatus;
-    target_ulong vsscratch;
     target_ulong vscause;
     target_ulong vstval;
     target_ulong vsatp;
@@ -269,6 +270,7 @@ struct CPURISCVState {
 #ifdef TARGET_CHERI
     cap_register_t stcc_hs;
     cap_register_t sepcc_hs;
+    cap_register_t sscratchc_hs;
 
     target_ulong stval2;
     target_ulong vstval2;
@@ -276,8 +278,8 @@ struct CPURISCVState {
 #else
     target_ulong stvec_hs;
     target_ulong sepc_hs;
-#endif
     target_ulong sscratch_hs;
+#endif
     target_ulong scause_hs;
     target_ulong stval_hs;
     target_ulong satp_hs;
@@ -290,14 +292,7 @@ struct CPURISCVState {
     target_ulong scounteren;
     target_ulong mcounteren;
 
-    target_ulong sscratch;
-
 #ifdef TARGET_CHERI
-    cap_register_t dscratch0c;
-    cap_register_t dscratch1c;
-    cap_register_t dpcc;
-    cap_register_t dddc;
-
     /* zstid registers */
     cap_register_t mtidc;
     cap_register_t stidc;
@@ -463,7 +458,7 @@ struct RISCVCPU {
         bool ext_icbom;
         bool ext_icboz;
 #ifdef TARGET_CHERI
-        bool ext_cheri_purecap; 
+        bool ext_cheri_purecap;
         bool cheri_pte;
         /* number of levels (Zcherilevels): 0 invalid, 1 disabled (default)) */
         uint8_t levels;
@@ -821,7 +816,8 @@ static inline const char *cpu_get_mode_name(qemu_log_instr_cpu_mode_t mode)
 }
 #endif
 
-
+RISCVException riscv_csr_accessible(CPURISCVState *env, int csrno,
+                                    bool is_write);
 RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_value,
                            target_ulong new_value, target_ulong write_mask,
                            uintptr_t retpc);
@@ -887,8 +883,16 @@ static inline cap_register_t *riscv_get_scr(CPUArchState *env, uint32_t index)
 
     case CheriSCR_UTIDC: return &env->utidc;
 
+    case CheriSCR_STCC: return &env->stvecc;
+    // case CheriSCR_STDC: return &env->stdc;
+    case CheriSCR_SScratchC: return &env->sscratchc;
+    case CheriSCR_SEPCC: return &env->sepcc;
     case CheriSCR_STIDC: return &env->stidc;
 
+    case CheriSCR_MTCC: return &env->mtvecc;
+    // case CheriSCR_MTDC: return &env->mtdc;
+    case CheriSCR_MScratchC: return &env->mscratchc;
+    case CheriSCR_MEPCC: return &env->mepcc;
     case CheriSCR_MTIDC: return &env->mtidc;
 
     case CheriSCR_VSTCC: return &env->vstcc;
@@ -902,7 +906,7 @@ static inline cap_register_t *riscv_get_scr(CPUArchState *env, uint32_t index)
 void riscv_cpu_register_gdb_regs_for_features(CPUState *cs);
 
 #ifdef TARGET_CHERI
-typedef struct _csr_cap_ops_ riscv_csr_cap_ops;
+typedef struct _csr_cap_ops riscv_csr_cap_ops;
 typedef cap_register_t (*riscv_csr_cap_read_fn)(CPURISCVState *env,
                                                 riscv_csr_cap_ops *cap);
 typedef void (*riscv_csr_cap_write_fn)(CPURISCVState *env,
@@ -916,7 +920,7 @@ typedef void (*riscv_csr_cap_write_fn)(CPURISCVState *env,
 #define CSR_OP_EXTENDED_REG  (1 << 3)
 #define CSR_OP_DIRECT_WRITE  (0)
 
-struct _csr_cap_ops_ {
+struct _csr_cap_ops {
     const char *name;
     uint32_t reg_num;
     riscv_csr_cap_read_fn read;
@@ -924,9 +928,7 @@ struct _csr_cap_ops_ {
     uint8_t flags;
 };
 riscv_csr_cap_ops *get_csr_cap_info(uint32_t csrnum);
-#endif
 
-#ifdef TARGET_CHERI
 /* Do the CRE bits allow cheri access in the current CPU mode? */
 static inline bool riscv_cpu_mode_cre(CPURISCVState *env)
 {

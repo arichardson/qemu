@@ -810,11 +810,6 @@ static void riscv_cpu_reset(DeviceState *dev)
     null_capability(&env->mscratchc);
     set_max_perms_capability(env, &env->mtvecc, 0);
     set_max_perms_capability(env, &env->mepcc, 0);
-    null_capability(&env->mtidc);
-    null_capability(&env->dscratch0c);
-    null_capability(&env->dscratch1c);
-    null_capability(&env->dpcc);
-    null_capability(&env->dddc);
 
     null_capability(&env->mtidc);
     null_capability(&env->stidc);

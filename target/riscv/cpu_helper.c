@@ -269,8 +269,9 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
         LOG_SPECIAL_REG(env, CSR_VSTVEC, CheriSCR_VSTCC);
         riscv_log_instr_csr_changed(env, CSR_STVEC);
 
-        env->vsscratch = env->sscratch;
-        env->sscratch = env->sscratch_hs;
+        COPY_SPECIAL_REG(env, vsscratch, vsscratchc, sscratch, sscratchc);
+        COPY_SPECIAL_REG(env, sscratch, sscratchc, sscratch_hs, sscratchc_hs);
+
         riscv_log_instr_csr_changed(env, CSR_VSSCRATCH);
         riscv_log_instr_csr_changed(env, CSR_SSCRATCH);
 
@@ -333,10 +334,11 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env, bool hs_mode_trap)
 
         COPY_SPECIAL_REG(env, stvec_hs, stcc_hs, stvec, stvecc);
         COPY_SPECIAL_REG(env, stvec, stvecc, vstvec, vstcc);
-        riscv_log_instr_csr_changed(env, CSR_STVEC);
+        LOG_SPECIAL_REG(env, CSR_STVEC, CheriSCR_STCC);
 
-        env->sscratch_hs = env->sscratch;
-        env->sscratch = env->vsscratch;
+        COPY_SPECIAL_REG(env, sscratch_hs, sscratchc_hs, sscratch, sscratchc);
+        COPY_SPECIAL_REG(env, sscratch, sscratchc, vsscratch, vsscratchc);
+
         riscv_log_instr_csr_changed(env, CSR_SSCRATCH);
 
         COPY_SPECIAL_REG(env, sepc_hs, sepcc_hs, sepc, sepcc);
@@ -1641,7 +1643,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             env->stval2 = mtval2;
             riscv_log_instr_csr_changed(env, CSR_STVAL2);
         }
-#endif 
+#endif
 
         target_ulong stvec = GET_SPECIAL_REG_ADDR(env, stvec, stvecc);
         target_ulong new_pc = (stvec >> 2 << 2) +
