@@ -1917,7 +1917,7 @@ This depends on the addrress mode
 • For Sv39, bits [63:39] must equal bit 38
 • For Sv48, bits [63:48] must equal bit 47
 • For Sv57, bits [63:57] must equal bit 56
-If address translation is not active or we are using sv32 then treat the address 
+If address translation is not active or we are using sv32 then treat the address
 as valid.
 This only applies for rv64
 */
@@ -1966,8 +1966,8 @@ static inline target_ulong get_valid_cap_address(CPUArchState *env,
 
 /*
 Given a capability and address turn the address into a valid address for that
-capability and return true if the address was changed 
-*/ 
+capability and return true if the address was changed
+*/
 static inline bool validate_cap_address(CPUArchState *env, cap_register_t *cap,
                                         target_ulong *address)
 {
@@ -2257,7 +2257,7 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_valu
 #ifdef TARGET_CHERI
         if (ret == RISCV_EXCP_CHERI)
             raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                       /*regnum=*/0, 0, true, retpc);
+                                       CapExType_InstrAccess, /*regnum=*/0, 0, true, retpc);
 #endif
         return ret;
     }
