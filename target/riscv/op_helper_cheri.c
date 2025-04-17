@@ -60,7 +60,8 @@ static void check_csr_cap_permissions(CPURISCVState *env, uint32_t csrno,
     }
     if (exc == RISCV_EXCP_CHERI) {
         raise_cheri_exception_impl(env, CapEx_AccessSystemRegsViolation,
-                                   CHERI_EXC_REGNUM_PCC, 0, true, hostpc);
+                                   CapExType_InstrAccess, CHERI_EXC_REGNUM_PCC,
+                                   0, true, hostpc);
     } else if (exc != RISCV_EXCP_NONE) {
         riscv_raise_exception(env, exc, hostpc);
     }
@@ -270,15 +271,20 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
     const cap_register_t *cbp = get_load_store_base_cap(env, addr_reg);
 
     if (!cbp->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, addr_reg);
+        raise_cheri_exception(env, CapEx_TagViolation, CapExType_Data,
+                              addr_reg);
     } else if (!cap_is_unsealed(cbp)) {
-        raise_cheri_exception(env, CapEx_SealViolation, addr_reg);
+        raise_cheri_exception(env, CapEx_SealViolation, CapExType_Data,
+                              addr_reg);
     } else if (!cap_has_perms(cbp, CAP_PERM_LOAD)) {
-        raise_cheri_exception(env, CapEx_PermitLoadViolation, addr_reg);
+        raise_cheri_exception(env, CapEx_PermitLoadViolation, CapExType_Data,
+                              addr_reg);
     } else if (!cap_has_perms(cbp, CAP_PERM_STORE)) {
-        raise_cheri_exception(env, CapEx_PermitStoreViolation, addr_reg);
+        raise_cheri_exception(env, CapEx_PermitStoreViolation, CapExType_Data,
+                              addr_reg);
     } else if (!cap_has_perms(cbp, CAP_PERM_STORE_CAP)) {
-        raise_cheri_exception(env, CapEx_PermitStoreCapViolation, addr_reg);
+        raise_cheri_exception(env, CapEx_PermitStoreCapViolation, CapExType_Data,
+                              addr_reg);
     }
 
     if (!cap_is_in_bounds(cbp, addr, CHERI_CAP_SIZE)) {
@@ -287,7 +293,8 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
             "Failed capability bounds check: addr=" TARGET_FMT_ld
             " base=" TARGET_FMT_lx " top=" TARGET_FMT_lx "\n",
             addr, cap_get_cursor(cbp), cap_get_top(cbp));
-        raise_cheri_exception(env, CapEx_LengthViolation, addr_reg);
+        raise_cheri_exception(env, CapEx_LengthViolation, CapExType_Data,
+                              addr_reg);
     } else if (!QEMU_IS_ALIGNED(addr, CHERI_CAP_SIZE)) {
         raise_unaligned_store_exception(env, addr, _host_return_address);
     }
@@ -317,11 +324,14 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
             "Should have raised EXCP_ATOMIC"));
     const cap_register_t *cbp = get_load_store_base_cap(env, auth_reg);
     if (!cbp->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, auth_reg);
+        raise_cheri_exception(env, CapEx_TagViolation, CapExType_Data,
+                              auth_reg);
     } else if (!cap_is_unsealed(cbp)) {
-        raise_cheri_exception(env, CapEx_SealViolation, auth_reg);
+        raise_cheri_exception(env, CapEx_SealViolation, CapExType_Data,
+                              auth_reg);
     } else if (!cap_has_perms(cbp, CAP_PERM_LOAD)) {
-        raise_cheri_exception(env, CapEx_PermitLoadViolation, auth_reg);
+        raise_cheri_exception(env, CapEx_PermitLoadViolation, CapExType_Data,
+                              auth_reg);
     }
 
     if (!cap_is_in_bounds(cbp, addr, CHERI_CAP_SIZE)) {
@@ -330,7 +340,8 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
             "Failed capability bounds check: addr=" TARGET_FMT_ld
             " base=" TARGET_FMT_lx " top=" TARGET_FMT_lx "\n",
             addr, cap_get_cursor(cbp), cap_get_top(cbp));
-        raise_cheri_exception(env, CapEx_LengthViolation, auth_reg);
+        raise_cheri_exception(env, CapEx_LengthViolation, CapExType_Data,
+                              auth_reg);
     } else if (!QEMU_IS_ALIGNED(addr, CHERI_CAP_SIZE)) {
         raise_unaligned_store_exception(env, addr, _host_return_address);
     }
@@ -384,13 +395,17 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
     const cap_register_t *cbp = get_load_store_base_cap(env, addr_reg);
 
     if (!cbp->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, addr_reg);
+        raise_cheri_exception(env, CapEx_TagViolation, CapExType_Data,
+                              addr_reg);
     } else if (!cap_is_unsealed(cbp)) {
-        raise_cheri_exception(env, CapEx_SealViolation, addr_reg);
+        raise_cheri_exception(env, CapEx_SealViolation, CapExType_Data,
+                              addr_reg);
     } else if (!cap_has_perms(cbp, CAP_PERM_STORE)) {
-        raise_cheri_exception(env, CapEx_PermitStoreViolation, addr_reg);
+        raise_cheri_exception(env, CapEx_PermitStoreViolation, CapExType_Data,
+                              addr_reg);
     } else if (!cap_has_perms(cbp, CAP_PERM_STORE_CAP)) {
-        raise_cheri_exception(env, CapEx_PermitStoreCapViolation, addr_reg);
+        raise_cheri_exception(env, CapEx_PermitStoreCapViolation, CapExType_Data,
+                              addr_reg);
     }
 
     if (!cap_is_in_bounds(cbp, addr, CHERI_CAP_SIZE)) {
@@ -399,7 +414,8 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
             "Failed capability bounds check: addr=" TARGET_FMT_ld
             " base=" TARGET_FMT_lx " top=" TARGET_FMT_lx "\n",
             addr, cap_get_cursor(cbp), cap_get_top(cbp));
-        raise_cheri_exception(env, CapEx_LengthViolation, addr_reg);
+        raise_cheri_exception(env, CapEx_LengthViolation, CapExType_Data,
+                              addr_reg);
     } else if (!QEMU_IS_ALIGNED(addr, CHERI_CAP_SIZE)) {
         raise_unaligned_store_exception(env, addr, _host_return_address);
     }
