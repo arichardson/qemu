@@ -489,7 +489,14 @@ static const target_ulong all_ints = M_MODE_INTERRUPTS | S_MODE_INTERRUPTS |
 #ifndef TARGET_CHERI
 #define CHERI_DELEGABLE_EXCPS 0
 #else
+#if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
+#define CHERI_DELEGABLE_EXCPS ( \
+        (1ULL << (RISCV_EXCP_LOAD_CAP_PAGE_FAULT)) | \
+        (1ULL << (RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT)) | \
+        (1ULL << (RISCV_EXCP_CHERI)))
+#else
 #define CHERI_DELEGABLE_EXCPS (1ULL << (RISCV_EXCP_CHERI))
+#endif
 #endif
 
 #define DELEGABLE_EXCPS ((1ULL << (RISCV_EXCP_INST_ADDR_MIS)) | \
