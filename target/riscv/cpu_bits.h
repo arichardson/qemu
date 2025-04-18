@@ -581,8 +581,16 @@ typedef enum {
 #define PTE_D               0x080 /* Dirty */
 #define PTE_SOFT            0x300 /* Reserved for Software */
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+#ifdef TARGET_CHERI_RISCV_STD
 #define PTE_CRG BIT_ULL(59) /* Cap Read Generation */
 #define PTE_CW  BIT_ULL(60) /* Cap Write */
+#else
+#define PTE_CRG             0x0800000000000000 /* Cap Read Generation */
+#define PTE_CRM             0x1000000000000000 /* Cap Read Modifier */
+#define PTE_CD              0x2000000000000000 /* Cap Dirty */
+#define PTE_CR              0x4000000000000000 /* Cap Read */
+#define PTE_CW              0x8000000000000000 /* Cap Write */
+#endif
 #endif
 
 /* Page table PPN shift amount */
@@ -618,6 +626,10 @@ typedef enum RISCVException {
     RISCV_EXCP_VIRT_INSTRUCTION_FAULT = 0x16,
     RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT = 0x17,
 #ifdef TARGET_CHERI
+#if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
+    RISCV_EXCP_LOAD_CAP_PAGE_FAULT = 0x1a,
+    RISCV_EXCP_STORE_AMO_CAP_PAGE_FAULT = 0x1b,
+#endif
     RISCV_EXCP_CHERI = 0x1c,
 #endif
 } RISCVException;
