@@ -595,22 +595,12 @@ static void sifive_u_machine_init(MachineState *machine)
     if (riscv_is_32bit(&s->soc.u_cpus)) {
         firmware_end_addr = riscv_find_and_load_firmware(
             machine,
-#if defined(TARGET_CHERI)
-            /* Use a purecap BBL as the BIOS for CHERI */
-            "bbl-riscv32cheri-generic-fw_jump.bin",
-#else
             RISCV32_BIOS_BIN,
-#endif
             start_addr, NULL);
     } else {
         firmware_end_addr = riscv_find_and_load_firmware(
             machine,
-#if defined(TARGET_CHERI)
-            /* Use a purecap BBL as the BIOS for CHERI */
-            "bbl-riscv64cheri-generic-fw_jump.bin",
-#else
             RISCV64_BIOS_BIN,
-#endif
             start_addr, NULL);
     }
 
