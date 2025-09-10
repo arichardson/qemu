@@ -479,6 +479,7 @@ struct RISCVCPU {
         uint8_t lvbits; /* Only 0 and 1 (Zylevels1) are currently supported. */
         bool cheri_pte;
 #endif
+#endif
         char *priv_spec;
         char *user_spec;
         char *bext_spec;
