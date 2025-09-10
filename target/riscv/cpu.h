@@ -480,6 +480,7 @@ struct RISCVCPU {
         /* This cpu supports 2^lvbits levels for a capability. */
         uint8_t lvbits;
 #endif
+#endif
         char *priv_spec;
         char *user_spec;
         char *bext_spec;
