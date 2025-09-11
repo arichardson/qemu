@@ -1557,7 +1557,7 @@ bool load_cap_from_memory_raw_tag_mmu_idx(
          * assume a 128-bit format and be less generic?
          */
         uint8_t lvbits = 0;
-#ifdef TARGET_RISCV
+#ifdef TARGET_CHERI_RISCV_STD
         lvbits = env_archcpu(env)->cfg.lvbits;
 #endif
         cap_register_t ncd;
@@ -1634,7 +1634,7 @@ cap_register_t load_and_decompress_cap_from_memory_raw(
                                         retpc, physaddr);
     cap_register_t result;
     uint8_t lvbits = 0;
-#if defined(TARGET_RISCV)
+#if defined(TARGET_CHERI_RISCV_STD)
     lvbits = env_archcpu(env)->cfg.lvbits;
 #endif
     CAP_cc(decompress_raw_ext)(pesbt, cursor, tag, lvbits, &result);
