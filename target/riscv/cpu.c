@@ -1050,6 +1050,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "J extension is not supported on Cheri systems.");
         return;
     }
+    set_feature(env, RISCV_FEATURE_STID);
 #ifdef TARGET_CHERI_RISCV_V9
     if (cpu->cfg.ext_cheri) {
         // Non-standard extensions present
@@ -1060,8 +1061,6 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     if (!cpu->cfg.ext_cheri_purecap) {
         set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
     }
-#endif
-    set_feature(env, RISCV_FEATURE_STID);
 
     if (cpu->cfg.levels == 0) {
         error_setg(errp, "cheri_levels must be > 0");
@@ -1077,6 +1076,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         return;
     }
     cpu->cfg.lvbits = (uint8_t)log2(cpu->cfg.levels);
+#endif
 #endif
 
     riscv_cpu_register_gdb_regs_for_features(cs);
@@ -1313,7 +1313,7 @@ static void riscv_isa_string_ext(RISCVCPU *cpu, char **isa_str, int max_str_len)
         ISA_EDATA_ENTRY(zbs, ext_zbs),
         ISA_EDATA_ENTRY(zicbom, ext_icbom),
         ISA_EDATA_ENTRY(zicboz, ext_icboz),
-#ifdef TARGET_CHERI
+#ifdef TARGET_CHERI_RISCV_STD
         {"zcherihybrid", !cpu->cfg.ext_cheri_purecap},
         {"zcheripurecap", true},
         {"zcheripte", cpu->cfg.cheri_pte },
