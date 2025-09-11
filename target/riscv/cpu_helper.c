@@ -695,7 +695,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     }
 
     CPUState *cs = env_cpu(env);
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_STD) && !defined(TARGET_RISCV32)
     RISCVCPU *cpu = env_archcpu(env);
 #endif
     int va_bits = PGSHIFT + levels * ptidxbits + widened;
@@ -867,8 +867,11 @@ restart:
             return_code = TRANSLATE_FAIL;
         }
 #if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-        if ((cpu->cfg.cheri_pte) && access_type == MMU_DATA_CAP_STORE &&
-            !(pte & PTE_CW)) {
+        if (access_type == MMU_DATA_CAP_STORE && !(pte & PTE_CW)
+#ifdef TARGET_CHERI_RISCV_STD_093
+        && cpu->cfg.cheri_pte
+#endif
+        ) {
             /* CW inhibited */
             qemu_log_mask(CPU_LOG_MMU,
                           "%s Translate fail: CW bit not set on level %d\n",
@@ -982,7 +985,11 @@ restart:
             bool pte_crg = (pte & PTE_CRG);
             bool status_ucrg = (env->mstatus & SSTATUS64_UCRG);
 
+#ifdef TARGET_CHERI_RISCV_STD_093
             if (cpu->cfg.cheri_pte) {
+#else
+            {
+#endif
                 if (!(pte & PTE_CW)) {
                     /* CW inhibited */
                     *prot |= PAGE_LC_CLEAR;
