@@ -832,6 +832,7 @@ static void riscv_cpu_reset(DeviceState *dev)
     null_capability(&env->vstdc);
 #endif
 
+   env->last_cap_type = CapEx093_Type_None;
 #endif /* TARGET_CHERI */
 #ifdef CONFIG_DEBUG_TCG
     env->_pc_is_current = true;
