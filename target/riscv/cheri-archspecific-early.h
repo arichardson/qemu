@@ -152,6 +152,9 @@ enum CheriSCR {
 #ifdef TARGET_CHERI_RISCV_V9
 #define CHERI_TAG_CLEAR_ON_INVALID(env) (env_archcpu(env)->cfg.ext_cheri_v9)
 #define CHERI_NO_RELOCATION(env)        (env_archcpu(env)->cfg.ext_cheri_v9)
+#elif defined(TARGET_CHERI_RISCV_STD_093)
+#define CHERI_TAG_CLEAR_ON_INVALID(env) true
+#define CHERI_NO_RELOCATION(env)        false
 #else
 #define CHERI_TAG_CLEAR_ON_INVALID(env) false
 #define CHERI_NO_RELOCATION(env)        false
