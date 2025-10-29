@@ -262,7 +262,7 @@ static inline void cap_set_exec_mode(cap_register_t *c, CheriExecMode mode)
 static inline uint8_t cap_get_cl(__attribute__((unused)) CPUArchState *env,
                                  const cap_register_t *c)
 {
-#if CHERI_FMT_RISCV
+#ifdef TARGET_CHERI_RISCV_STD
     /* If levels are not used (or not supported), CL is reserved. */
     if (env_archcpu(env)->cfg.lvbits == 0) {
         return 1;
