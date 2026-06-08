@@ -155,9 +155,9 @@ static inline bool validate_jump_target(CPUArchState *env,
                                           addr, retpc);
     }
 #endif
-    // XXX: Sail only checks bit 1 why not also bit zero? Is it because that is
-    // ignored?
-    if (!riscv_has_ext(env, RVC) && (addr & 0x2)) {
+    if (!riscv_has_ext(env, RVC) && !env_archcpu(env)->cfg.ext_zca &&
+        (addr & 0x2)) {
+        env->badaddr = addr;
         riscv_raise_exception(env, RISCV_EXCP_INST_ADDR_MIS, retpc);
     }
     return true;
