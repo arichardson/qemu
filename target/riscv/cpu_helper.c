@@ -66,6 +66,9 @@ void riscv_cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
 #ifdef TARGET_CHERI
     cheri_cpu_get_tb_cpu_state(env, &env->pcc, &env->ddc, pcc_base, pcc_top,
                                cheri_flags);
+    if (riscv_cpu_mode_y(env)) {
+        *cheri_flags |= TB_FLAG_CHERI_Y_ENABLED;
+    }
 #endif
     *cs_base = 0;
 

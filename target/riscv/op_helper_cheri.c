@@ -59,6 +59,10 @@ static void check_csr_cap_permissions(CPURISCVState *env, uint32_t csrno,
         !riscv_cpu_mode_cre(env)) {
         exc = RISCV_EXCP_ILLEGAL_INST;
     }
+    if (csrno == CSR_DDC &&
+        !riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID)) {
+        exc = RISCV_EXCP_ILLEGAL_INST;
+    }
     if (exc == RISCV_EXCP_CHERI) {
         raise_access_sys_regs_exception(env, hostpc);
     } else if (exc != RISCV_EXCP_NONE) {
