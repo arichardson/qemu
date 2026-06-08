@@ -233,6 +233,8 @@ typedef enum CheriTbFlags {
     TB_FLAG_CHERI_PCC_FULL_AS =
         TB_FLAG_CHERI_PCC_BASE_ZERO | TB_FLAG_CHERI_PCC_TOP_MAX,
     TB_FLAG_CHERI_PCC_READABLE = (1 << 9),
+    /* Effective CHERI enablement (misa.Y and menvcfg/senvcfg/henvcfg.Y). */
+    TB_FLAG_CHERI_Y_ENABLED = (1 << 10),
 
     /* Useful for CHERI-specific flags on various platforms if the normal flags
        overflowed */
