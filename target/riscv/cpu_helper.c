@@ -854,16 +854,52 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot,
 static void pte_print(target_ulong pte, int level)
 {
     qemu_log_mask(
-        CPU_LOG_MMU, "PTE - " TARGET_FMT_lx " %s%s%s%s%s%s%s%s%s%s %d\n", pte,
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
-        pte & PTE_CRG ? "CRG" : "", pte & PTE_CW ? "CW" : "",
+        CPU_LOG_MMU, "PTE - " TARGET_FMT_lx " %s%s%s%s%s%s%s%s%s%s%s %d\n",
+        pte,
+#if defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+        pte & PTE_YR ? "YR," : "", pte & PTE_YRG ? "YRG," : "",
+        pte & PTE_YW ? "YW," : "", pte & PTE_YD ? "YD," : "",
+#elif defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+        pte & PTE_CRG ? "CRG" : "", pte & PTE_CW ? "CW" : "", "", "",
 #else
-        "", "",
+        "", "", "", "",
 #endif
         pte & PTE_R ? "R" : "", pte & PTE_W ? "W" : "", pte & PTE_X ? "X" : "",
         pte & PTE_A ? "A" : "", pte & PTE_U ? "U" : "", pte & PTE_D ? "D" : "",
-        pte & PTE_A ? "A" : "", pte & PTE_V ? "V" : "", level);
+        pte & PTE_V ? "V" : "", level);
 }
+
+#if defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+/*
+ * RVY 0.9.9 Section 21 ("Svyrg" Extension): "The Svyrg extension is enabled
+ * when the sstatus.YRGE bit is set. When sstatus.YRGE=0, only pte.rvy[3]
+ * (pte.y) has meaning... When sstatus.YRGE=1, the entire pte.rvy field is
+ * redefined".
+ */
+static bool riscv_cpu_svyrg_active(CPURISCVState *env)
+{
+    return env_archcpu(env)->cfg.ext_svyrg && (env->mstatus & MSTATUS64_YRGE);
+}
+
+/*
+ * RVY 0.9.9 Section 21.2 (Capability Dirty Tracking, Table 67):
+ * - "When pte.yw is clear, capability stores or AMOs where the to-be-stored
+ *   capability tag is set will raise a CHERI Store/AMO Page Fault."
+ * - "Capability dirty tracking must be triggered when pte.yw=1 and pte.yd=0
+ *   and the to-be-stored capability tag is set... For Svade, take a CHERI
+ *   Store/AMO Page Fault."
+ * RVY 0.9.9 Section 19.2 (Table 63): when Svyrg is disabled, "If pte.y=0
+ * then... All capability stores with the to-be-stored capability tag set
+ * raise a CHERI Store/AMO Page Fault."
+ */
+static bool rvy_cap_store_page_fault(CPURISCVState *env, target_ulong pte)
+{
+    if (riscv_cpu_svyrg_active(env)) {
+        return !(pte & PTE_YW) || !(pte & PTE_YD);
+    }
+    return !(pte & PTE_Y);
+}
+#endif
 
 /* get_physical_address - get the physical address for this virtual address
  *
@@ -1095,12 +1131,12 @@ restart:
 
         if (riscv_cpu_sxl(env) == MXL_RV32) {
             ppn = pte >> PTE_PPN_SHIFT;
-#if !defined(TARGET_CHERI_RISCV_V9)
-        } else if (cpu->cfg.ext_svpbmt || cpu->cfg.ext_svnapot) {
-            ppn = (pte & (target_ulong)PTE_PPN_MASK) >> PTE_PPN_SHIFT;
-#endif
         } else {
-            if (pte & PTE_RESERVED) {
+            if ((pte & PTE_RESERVED)
+#if !defined(TARGET_CHERI_RISCV_V9)
+                || (!cpu->cfg.ext_svnapot && (pte & PTE_N))
+#endif
+               ) {
                 qemu_log_mask(
                     CPU_LOG_MMU,
                     "%s Translate fail: reserved bit set: " TARGET_FMT_lx "\n",
@@ -1132,7 +1168,15 @@ restart:
 #endif
         } else if (!(pte & (PTE_R | PTE_W | PTE_X))) {
             /* Inner PTE, continue walking */
-#if defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+            if (pte & PTE_RVY_FIELD) {
+                /* The rvy field is reserved in non-leaf PTEs. */
+                qemu_log_mask(CPU_LOG_MMU,
+                              "%s Translate fail: rvy set in non-leaf PTE\n",
+                              __func__);
+                return TRANSLATE_FAIL;
+            }
+#elif defined(TARGET_CHERI_RISCV_STD) && !defined(TARGET_RISCV32)
             if (pte & PTE_CW) {
                 /* This bit on a leaf node is illegal regardless of cheripte */
                 qemu_log_mask(CPU_LOG_MMU,
@@ -1157,6 +1201,13 @@ restart:
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: Reserved WRX 011\n",
                           __func__);
             return TRANSLATE_FAIL;
+#if defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+        } else if (!riscv_cpu_svyrg_active(env) && (pte & PTE_RVY_RESERVED)) {
+            qemu_log_mask(CPU_LOG_MMU,
+                          "%s Translate fail: reserved rvy bits set\n",
+                          __func__);
+            return TRANSLATE_FAIL;
+#endif
 #if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
         } else if ((pte & (PTE_CR | PTE_CRG)) == PTE_CRG) {
             /* Reserved CHERI-extended PTE flags: no CR but CRG */
@@ -1204,7 +1255,14 @@ restart:
             qemu_log_mask(CPU_LOG_MMU, "%s Translate fail: X bit not set\n",
                           __func__);
             return TRANSLATE_FAIL;
-#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+        } else if (access_type == MMU_DATA_CAP_STORE &&
+                   rvy_cap_store_page_fault(env, pte)) {
+            qemu_log_mask(CPU_LOG_MMU,
+                          "%s Translate fail: capability store denied by "
+                          "pte.rvy on level %d\n", __func__, i);
+            return TRANSLATE_CHERI_FAIL;
+#elif defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
         } else if (access_type == MMU_DATA_CAP_STORE && !(pte & PTE_CW)
 #if defined(TARGET_CHERI_RISCV_STD)
                    && cpu->cfg.ext_svyrg
@@ -1330,7 +1388,8 @@ restart:
                  (access_type == MMU_DATA_CAP_STORE) || (pte & PTE_D))) {
                 *prot |= PAGE_WRITE;
             }
-#if defined(TARGET_CHERI_RISCV_V9) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI) && !defined(TARGET_RISCV32)
+#if defined(TARGET_CHERI_RISCV_V9)
             if ((pte & PTE_CR) == 0) {
                 if ((pte & PTE_CRM) == 0) {
                     *prot |= PAGE_LC_CLEAR;
@@ -1351,6 +1410,40 @@ restart:
                 }
             }
             if ((pte & PTE_CW) == 0) {
+                *prot |= PAGE_SC_TRAP;
+            }
+#elif defined(TARGET_CHERI_RISCV_RVY) && !defined(TARGET_RISCV32)
+            if (riscv_cpu_svyrg_active(env)) {
+                /*
+                 * RVY 0.9.9 Section 21.1 (Table 66):
+                 * "When pte.yr is clear, pte.yrg selects the behavior of
+                 * capability loads: if pte.yrg is clear, the loaded capability
+                 * tag is written to rd as zero; if pte.yrg is set, the load
+                 * operates as normal. When pte.yr is set, pte.yrg can be used
+                 * to trap on capability loads or AMOs when it does not match
+                 * the Capability Read Generation value that is represented by
+                 * the value of sstatus.UYRG for userspace pages (pte.u=1) or
+                 * sstatus.SYRG for kernel pages (pte.u=0)."
+                 */
+                if (!(pte & PTE_YR)) {
+                    if (!(pte & PTE_YRG)) {
+                        *prot |= PAGE_LC_CLEAR;
+                    }
+                } else {
+                    target_ulong xyrg_bit =
+                        (pte & PTE_U) ? MSTATUS64_UYRG : MSTATUS64_SYRG;
+                    if (!!(pte & PTE_YRG) != !!(env->mstatus & xyrg_bit)) {
+                        *prot |= PAGE_LC_TRAP;
+                    }
+                }
+            } else if (!(pte & PTE_Y)) {
+                /*
+                 * RVY 0.9.9 Section 19.2 (Table 63): "If pte.y=0 then: All
+                 * capability loads set the loaded capability tag to zero".
+                 */
+                *prot |= PAGE_LC_CLEAR;
+            }
+            if (rvy_cap_store_page_fault(env, pte)) {
                 *prot |= PAGE_SC_TRAP;
             }
 #elif defined(TARGET_CHERI_RISCV_STD_093) && !defined(TARGET_RISCV32)
@@ -1378,6 +1471,7 @@ restart:
                     }
                 }
             }
+#endif
 #endif
             return TRANSLATE_SUCCESS;
         }
