@@ -117,6 +117,7 @@ DEF_HELPER_4(cincoffset, void, env, i32, i32, tl)
 #define CJALR_CAN_BRANCH_RESTRICTED 0
 #define CJALR_DONT_MAKE_SENTRY 0
 #endif
+#define CJALR_DONT_UNSEAL_SENTRY (1 << 11)
 DEF_HELPER_5(cjalr, void, env, i32, i32, tl, tl)
 DEF_HELPER_4(csetaddr, void, env, i32, i32, tl)
 DEF_HELPER_4(csethigh, void, env, i32, i32, tl)

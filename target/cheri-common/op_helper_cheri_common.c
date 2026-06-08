@@ -371,11 +371,22 @@ void cheri_jump_and_link(CPUArchState *env, const cap_register_t *target,
     cheri_debug_assert(cap_is_unsealed(target) || cap_is_sealed_entry(target));
 #endif
 
-    if (next_pcc.cr_tag && cap_is_sealed_entry(&next_pcc)) {
-        // If we are calling a "sentry" cap, remove the sealed flag
-        cap_unseal_entry(&next_pcc);
-        assert(cap_get_cursor(&next_pcc) == addr &&
-               "Should have raised an exception");
+    if (cap_is_sealed_entry(&next_pcc)) {
+        if (cap_get_cursor(&next_pcc) != addr ||
+            (cjalr_flags & CJALR_DONT_UNSEAL_SENTRY)) {
+            /*
+             * RVY 0.9.9 JALR: only unseal a sentry if rs1.address[0] is zero
+             * and the I-immediate is zero. Otherwise YADDRW semantics leave
+             * it sealed and clear the tag.
+             */
+            cheri_debug_assert(CHERI_CONTROLFLOW_CHECK_AT_TARGET &&
+                               "Should have raised an exception");
+            next_pcc.cr_tag = 0;
+        } else {
+            // If we are calling a "sentry" cap, remove the sealed flag
+            cap_unseal_entry(&next_pcc);
+        }
+        cap_set_cursor(&next_pcc, addr);
     } else if (cjalr_flags & CJALR_MUST_BE_SENTRY) {
         qemu_log_mask_and_addr(CPU_LOG_INSTR | LOG_GUEST_ERROR,
                        cpu_get_recent_pc(env),
@@ -440,16 +451,20 @@ void cheri_jump_and_link_checked(CPUArchState *env, uint32_t link_reg,
                                  uintptr_t _host_return_address)
 {
 #ifdef TARGET_RISCV
+    if (target_addr != cap_get_cursor(target) || (target_addr & 1)) {
+        flags |= CJALR_DONT_UNSEAL_SENTRY;
+    }
     /* On RISC-V we mask the LSB of the target to match JALR behaviour. */
     target_addr &= ~(target_ulong)1;
 #endif
-    /* Morello takes the exception at the target. */
+    /* Morello and RVY take capability faults at the target. */
 #if !CHERI_CONTROLFLOW_CHECK_AT_TARGET
     if (!target->cr_tag) {
         raise_cheri_exception_branch(env, CapEx_TagViolation, target_reg);
     } else if (cap_is_sealed_with_type(target) ||
                (!cap_is_unsealed(target) &&
-                target_addr != cap_get_cursor(target))) {
+                (target_addr != cap_get_cursor(target) ||
+                 (flags & CJALR_DONT_UNSEAL_SENTRY)))) {
         /*
          * Note: "sentry" caps can be called using cjalr, but only if the
          * immediate offset is 0, i.e. target_addr==target.address.
@@ -458,11 +473,12 @@ void cheri_jump_and_link_checked(CPUArchState *env, uint32_t link_reg,
     } else if (!cap_has_perms(target, CAP_PERM_EXECUTE)) {
         raise_cheri_exception_branch(env, CapEx_PermitExecuteViolation,
                                      target_reg);
-    } else if (!validate_jump_target(env, target, target_addr, target_reg,
-                                     _host_return_address)) {
-        assert(false && "Should have raised an exception");
     }
 #endif
+    if (!validate_jump_target(env, target, target_addr, target_reg,
+                              _host_return_address)) {
+        assert(false && "Should have raised an exception");
+    }
     cheri_jump_and_link(env, target, target_addr, link_reg, link_pc, flags);
 }
 
@@ -958,21 +974,20 @@ void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
     target_ulong new_perms = old_perms & rt;
     /* Ensure that the permission can be encoded */
     cap_legalize_perms(env, &result, &new_perms);
-#ifdef TARGET_CHERI_RISCV_RVY
-    /*
-     * RVY 0.9.9 YPERMC: Clearing GL on a sealed capability preserves the tag
-     * as long as AP and SDP are unchanged (Section 13.3).
-     */
-    if (!cbp->cr_tag ||
-        (!cap_is_unsealed(cbp) &&
-         ((old_perms ^ new_perms) & ~CAP_PERM_GLOBAL) != 0)) {
-        result.cr_tag = 0;
-    }
-#else
     if (!RESULT_VALID) {
+#ifdef TARGET_CHERI_RISCV_RVY
+        /*
+         * RVY 0.9.9 YPERMC: Clearing GL on a sealed capability preserves the
+         * tag as long as AP and SDP are unchanged (RVY 0.9.9 Section 13.3).
+         */
+        if (!cbp->cr_tag ||
+            ((old_perms ^ new_perms) & ~CAP_PERM_GLOBAL) != 0) {
+            result.cr_tag = 0;
+        }
+#else
         result.cr_tag = 0;
-    }
 #endif
+    }
 #ifdef TARGET_CHERI_RISCV_STD
     /* If the execution mode is no longer encodable with X removed, strip it. */
     CheriExecMode mode = cap_get_exec_mode(cbp);
@@ -1825,6 +1840,10 @@ void CHERI_HELPER_IMPL(raise_exception_pcc_bounds(CPUArchState *env,
     // helpful).
     cheri_debug_assert(!cap_is_in_bounds(cheri_get_current_pcc(env), addr,
                                          num_bytes == 0 ? 1 : num_bytes));
+#if CHERI_CONTROLFLOW_CHECK_AT_TARGET
+    cheri_update_pcc((cap_register_t *)_cheri_get_pcc_unchecked(env), addr,
+                     /*can_be_unrep=*/true);
+#endif
     raise_pcc_fault(env, CapEx_LengthViolation, addr);
 }
 
