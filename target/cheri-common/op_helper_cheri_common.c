@@ -954,12 +954,24 @@ void CHERI_HELPER_IMPL(candperm(CPUArchState *env, uint32_t cd, uint32_t cb,
     }
 
     cap_register_t result = *cbp;
-    if (!RESULT_VALID) {
-        result.cr_tag = 0;
-    }
-    target_ulong new_perms = cap_get_all_perms(cbp) & rt;
+    target_ulong old_perms = cap_get_all_perms(cbp);
+    target_ulong new_perms = old_perms & rt;
     /* Ensure that the permission can be encoded */
     cap_legalize_perms(env, &result, &new_perms);
+    if (!RESULT_VALID) {
+#ifdef TARGET_CHERI_RISCV_RVY
+        /*
+         * RVY 0.9.9 YPERMC: Clearing GL on a sealed capability preserves the
+         * tag as long as AP and SDP are unchanged (RVY 0.9.9 Section 13.3).
+         */
+        if (!cbp->cr_tag ||
+            ((old_perms ^ new_perms) & ~CAP_PERM_GLOBAL) != 0) {
+            result.cr_tag = 0;
+        }
+#else
+        result.cr_tag = 0;
+#endif
+    }
 #ifdef TARGET_CHERI_RISCV_STD
     /* If the execution mode is no longer encodable with X removed, strip it. */
     CheriExecMode mode = cap_get_exec_mode(cbp);
