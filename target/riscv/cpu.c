@@ -812,7 +812,9 @@ static void riscv_cpu_reset(DeviceState *dev)
 #ifdef CONFIG_RVFI_DII
     if (rvfi_dii_enabled()) {
         /* TestRIG assumes that CHERI extensions are enabled */
+#ifdef TARGET_CHERI_RISCV_STD_093
         env->mseccfg |= MSECCFG_CRE;
+#endif
         env->menvcfg |= MENVCFG_Y;
         env->senvcfg |= SENVCFG_Y;
     }
@@ -1193,6 +1195,10 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         set_misa(env, env->misa_mxl, env->misa_ext | RV('X'));
         riscv_set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
 #elif defined(TARGET_CHERI_RISCV_STD)
+#ifdef TARGET_CHERI_RISCV_RVY
+        /* RVY is supported, so enable it by default */
+        set_misa(env, env->misa_mxl, env->misa_ext | RVY);
+#endif
         if (cpu->cfg.ext_zyhybrid) {
             riscv_set_feature(env, RISCV_FEATURE_CHERI_HYBRID);
         }
