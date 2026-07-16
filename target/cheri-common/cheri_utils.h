@@ -166,9 +166,13 @@ static inline bool fix_up_ap(CPUArchState *env, target_ulong *perms_result)
     }
 #endif
 
-    /* rule 11 */
+    /* rule 11 (RVY 0.9.9 Section 13.3.1, Table 44: Zylevels1-2 adds W) */
     if (lvbits > 0) {
+#ifdef TARGET_CHERI_RISCV_RVY
+        PERM_RULE(RVY_AP_SL, (perms & RVY_AP_C) && (perms & RVY_AP_W));
+#else
         PERM_RULE(RVY_AP_SL, perms & RVY_AP_C);
+#endif
     }
 
 #if CAP_CC(ADDR_WIDTH) == 32
@@ -274,6 +278,13 @@ cap_has_invalid_perms_encoding(G_GNUC_UNUSED CPUArchState *env,
 #ifdef TARGET_CHERI_RISCV_STD
     target_ulong perms = cap_get_all_perms(c);
     CheriExecMode mode = cap_get_exec_mode(c);
+#if CAP_CC(ADDR_WIDTH) == 32
+    if (CAP_cc(getbits)(c->cr_pesbt, CAP_CC(FIELD_AP_M_START),
+                        CAP_CC(FIELD_AP_M_SIZE)) != 0 &&
+        !(perms & (CAP_PERM_LOAD | CAP_PERM_STORE))) {
+        return true;
+    }
+#endif
     return fix_up_ap(env, &perms) || fix_up_exec_mode(env, &mode, perms);
 #else
     return false;

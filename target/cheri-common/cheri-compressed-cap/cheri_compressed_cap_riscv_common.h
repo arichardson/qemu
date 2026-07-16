@@ -4,6 +4,10 @@ static inline _cc_addr_t _cc_N(get_reserved)(const _cc_cap_t* cap) {
     _cc_addr_t reserved = cap->cr_pesbt & (_CC_N(FIELD_RESERVED0_MASK64) | _CC_N(FIELD_RESERVED1_MASK64));
     if (cap->cr_lvbits == 0) {
         reserved |= cap->cr_pesbt & _CC_N(FIELD_LEVEL_MASK64);
+#if _CC_ADDR_WIDTH == 64
+        reserved |= _CC_EXTRACT_FIELD(cap->cr_pesbt, AP) &
+                    (_CC_BIT64(6) | _CC_BIT64(7));
+#endif
     }
     return reserved;
 }

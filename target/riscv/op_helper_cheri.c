@@ -612,7 +612,8 @@ void HELPER(packy)(CPUArchState *env, uint32_t cd, target_ulong rs1,
                    target_ulong rs2)
 {
     cap_register_t result;
-    CAP_cc(decompress_mem)(rs2, rs1, false, &result);
+    CAP_cc(decompress_raw_ext)(rs2 ^ CAP_MEM_XOR_MASK, rs1, false,
+                               env_archcpu(env)->cfg.lvbits, &result);
     result.cr_extra = CREG_FULLY_DECOMPRESSED;
     update_capreg(env, cd, &result);
 }
