@@ -376,7 +376,11 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
         raise_cheri_exception_access(env, CapEx_LengthViolation, auth_reg, 0,
                                      CHERI_ACCESS_LOAD);
     } else if (!QEMU_IS_ALIGNED(addr, CHERI_CAP_SIZE)) {
-        raise_unaligned_store_exception(env, addr, _host_return_address);
+        /*
+         * Unlike SC.Y/AMOSWAP.Y, LR.Y has plain load semantics for its
+         * exception checks, so a misaligned address is a load fault.
+         */
+        raise_unaligned_load_exception(env, addr, _host_return_address);
     }
     /*
      * For the reservation, we need the raw memory content without any fixups
