@@ -92,4 +92,6 @@ endif
 subdir('unit')
 subdir('qapi-schema')
 subdir('qtest')
+# Include rvy/src directly as tests/rvy/meson.build is a standalone project.
+subdir('rvy/src')
 subdir('migration')
