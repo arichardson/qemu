@@ -81,6 +81,8 @@ test('decodetree', sh,
 
 if 'CONFIG_TCG' in config_all
   subdir('fp')
+  # Include rvy/src directly as tests/rvy/meson.build is a standalone project.
+  subdir('rvy/src')
 endif
 
 if get_option('tcg').allowed()
