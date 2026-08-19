@@ -92,7 +92,7 @@ typedef struct DisasContext {
 #ifdef TARGET_CHERI
     bool capmode;
     bool hybrid;
-    bool cre;
+    bool y_enabled;
 #ifdef TARGET_CHERI_RISCV_V9
     bool cheri_v9_semantics;
 #endif
@@ -925,12 +925,12 @@ static bool pred_hybrid(DisasContext *ctx)
 #ifdef TARGET_CHERI_RISCV_STD_093
 static bool pred_cre(DisasContext *ctx)
 {
-    return ctx->cre;
+    return ctx->y_enabled;
 }
 #elif defined(TARGET_CHERI_RISCV_RVY)
 static bool pred_rvy(DisasContext *ctx)
 {
-    return ctx->cre;
+    return ctx->y_enabled;
 }
 #endif
 
