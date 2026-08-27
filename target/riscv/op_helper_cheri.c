@@ -333,6 +333,14 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
     if (addr == env->load_res) {
         env->load_res = -1; // Invalidate LR/SC to the same address
     }
+    /* Store/AMO page faults have higher priority than load capability faults. */
+    if (cheri_will_store_tag(env, cbp, val_reg)) {
+        probe_cap_write(env, addr, CHERI_CAP_SIZE, cpu_mmu_index(env, false),
+                        _host_return_address);
+    } else {
+        probe_write(env, addr, CHERI_CAP_SIZE, cpu_mmu_index(env, false),
+                    _host_return_address);
+    }
     // Load the value to store from the register file now in case the
     // load_cap_from_memory call overwrites that register
     target_ulong loaded_pesbt;
