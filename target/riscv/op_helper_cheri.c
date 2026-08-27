@@ -289,21 +289,28 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
     }
     const cap_register_t *cbp = get_load_store_base_cap(env, addr_reg);
 
+    /* All checks for AMOs are reported as store/AMO faults. */
     if (!cbp->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, addr_reg);
+        raise_cheri_exception_access(env, CapEx_TagViolation, addr_reg, 0,
+                                     CHERI_ACCESS_STORE);
     } else if (!cap_is_unsealed(cbp)) {
-        raise_cheri_exception(env, CapEx_SealViolation, addr_reg);
+        raise_cheri_exception_access(env, CapEx_SealViolation, addr_reg, 0,
+                                     CHERI_ACCESS_STORE);
     } else if (!cap_has_perms(cbp, CAP_PERM_LOAD)) {
-        raise_cheri_exception(env, CapEx_PermitLoadViolation, addr_reg);
+        raise_cheri_exception_access(env, CapEx_PermitLoadViolation, addr_reg,
+                                     0, CHERI_ACCESS_STORE);
     } else if (!cap_has_perms(cbp, CAP_PERM_STORE)) {
-        raise_cheri_exception(env, CapEx_PermitStoreViolation, addr_reg);
+        raise_cheri_exception_access(env, CapEx_PermitStoreViolation, addr_reg,
+                                     0, CHERI_ACCESS_STORE);
 #ifndef TARGET_CHERI_RISCV_STD /* RISC-V Standard CHERI tag clears instead. */
     } else if (!cap_has_perms(cbp, CAP_PERM_STORE_CAP)) {
-        raise_cheri_exception(env, CapEx_PermitStoreCapViolation, addr_reg);
+        raise_cheri_exception_access(env, CapEx_PermitStoreCapViolation,
+                                     addr_reg, 0, CHERI_ACCESS_STORE);
     } else if (!cap_has_perms(cbp, CAP_PERM_STORE_LOCAL) &&
                get_capreg_tag(env, val_reg) &&
                !(get_capreg_hwperms(env, val_reg) & CAP_PERM_GLOBAL)) {
-        raise_cheri_exception(env, CapEx_PermitStoreLocalCapViolation, val_reg);
+        raise_cheri_exception_access(env, CapEx_PermitStoreLocalCapViolation,
+                                     val_reg, 0, CHERI_ACCESS_STORE);
 #endif
     }
 
@@ -313,7 +320,8 @@ void HELPER(amoswap_cap)(CPUArchState *env, uint32_t dest_reg,
             "Failed capability bounds check: addr=" TARGET_FMT_ld
             " base=" TARGET_FMT_lx " top=" TARGET_FMT_lx "\n",
             addr, cap_get_cursor(cbp), cap_get_top(cbp));
-        raise_cheri_exception(env, CapEx_LengthViolation, addr_reg);
+        raise_cheri_exception_access(env, CapEx_LengthViolation, addr_reg, 0,
+                                     CHERI_ACCESS_STORE);
     } else if (!QEMU_IS_ALIGNED(addr, CHERI_CAP_SIZE)) {
         raise_unaligned_store_exception(env, addr, _host_return_address);
     }
@@ -342,12 +350,16 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
            (cpu_in_exclusive_context(env_cpu(env)) &&
             "Should have raised EXCP_ATOMIC"));
     const cap_register_t *cbp = get_load_store_base_cap(env, auth_reg);
+    /* All checks for LR.Y are reported as load faults. */
     if (!cbp->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, auth_reg);
+        raise_cheri_exception_access(env, CapEx_TagViolation, auth_reg, 0,
+                                     CHERI_ACCESS_LOAD);
     } else if (!cap_is_unsealed(cbp)) {
-        raise_cheri_exception(env, CapEx_SealViolation, auth_reg);
+        raise_cheri_exception_access(env, CapEx_SealViolation, auth_reg, 0,
+                                     CHERI_ACCESS_LOAD);
     } else if (!cap_has_perms(cbp, CAP_PERM_LOAD)) {
-        raise_cheri_exception(env, CapEx_PermitLoadViolation, auth_reg);
+        raise_cheri_exception_access(env, CapEx_PermitLoadViolation, auth_reg,
+                                     0, CHERI_ACCESS_LOAD);
     }
 
     if (!cap_is_in_bounds(cbp, addr, CHERI_CAP_SIZE)) {
@@ -356,7 +368,8 @@ static void lr_c_impl(CPUArchState *env, uint32_t dest_reg, uint32_t auth_reg,
             "Failed capability bounds check: addr=" TARGET_FMT_ld
             " base=" TARGET_FMT_lx " top=" TARGET_FMT_lx "\n",
             addr, cap_get_cursor(cbp), cap_get_top(cbp));
-        raise_cheri_exception(env, CapEx_LengthViolation, auth_reg);
+        raise_cheri_exception_access(env, CapEx_LengthViolation, auth_reg, 0,
+                                     CHERI_ACCESS_LOAD);
     } else if (!QEMU_IS_ALIGNED(addr, CHERI_CAP_SIZE)) {
         raise_unaligned_store_exception(env, addr, _host_return_address);
     }
@@ -426,19 +439,25 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
             "Should have raised EXCP_ATOMIC"));
     const cap_register_t *auth_cap = get_load_store_base_cap(env, addr_reg);
 
+    /* All checks for SC.Y are reported as store/AMO faults. */
     if (!auth_cap->cr_tag) {
-        raise_cheri_exception(env, CapEx_TagViolation, addr_reg);
+        raise_cheri_exception_access(env, CapEx_TagViolation, addr_reg, 0,
+                                     CHERI_ACCESS_STORE);
     } else if (!cap_is_unsealed(auth_cap)) {
-        raise_cheri_exception(env, CapEx_SealViolation, addr_reg);
+        raise_cheri_exception_access(env, CapEx_SealViolation, addr_reg, 0,
+                                     CHERI_ACCESS_STORE);
     } else if (!cap_has_perms(auth_cap, CAP_PERM_STORE)) {
-        raise_cheri_exception(env, CapEx_PermitStoreViolation, addr_reg);
+        raise_cheri_exception_access(env, CapEx_PermitStoreViolation,
+                                     addr_reg, 0, CHERI_ACCESS_STORE);
 #ifndef TARGET_CHERI_RISCV_STD
     } else if (!cap_has_perms(auth_cap, CAP_PERM_STORE_CAP)) {
-        raise_cheri_exception(env, CapEx_PermitStoreCapViolation, addr_reg);
+        raise_cheri_exception_access(env, CapEx_PermitStoreCapViolation,
+                                     addr_reg, 0, CHERI_ACCESS_STORE);
     } else if (!cap_has_perms(auth_cap, CAP_PERM_STORE_LOCAL) &&
                get_capreg_tag(env, val_reg) &&
                !(get_capreg_hwperms(env, val_reg) & CAP_PERM_GLOBAL)) {
-        raise_cheri_exception(env, CapEx_PermitStoreLocalCapViolation, val_reg);
+        raise_cheri_exception_access(env, CapEx_PermitStoreLocalCapViolation,
+                                     val_reg, 0, CHERI_ACCESS_STORE);
 #endif
     }
 
@@ -448,7 +467,8 @@ static target_ulong sc_c_impl(CPUArchState *env, uint32_t addr_reg,
             "Failed capability bounds check: addr=" TARGET_FMT_ld
             " base=" TARGET_FMT_lx " top=" TARGET_FMT_lx "\n",
             addr, cap_get_cursor(auth_cap), cap_get_top(auth_cap));
-        raise_cheri_exception(env, CapEx_LengthViolation, addr_reg);
+        raise_cheri_exception_access(env, CapEx_LengthViolation, addr_reg, 0,
+                                     CHERI_ACCESS_STORE);
     } else if (!QEMU_IS_ALIGNED(addr, CHERI_CAP_SIZE)) {
         raise_unaligned_store_exception(env, addr, _host_return_address);
     }

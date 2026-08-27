@@ -135,12 +135,9 @@ static inline void check_cap(CPUArchState *env, const cap_register_t *cr,
     return;
 
 do_exception:
-#ifdef TARGET_AARCH64
-    raise_cheri_exception_impl_if_wnr(env, cause, regnum, addr, true, pc,
-                                      false, !!(perm & CAP_PERM_STORE));
-#else
-    raise_cheri_exception_impl(env, cause, regnum, addr, true, pc);
-#endif
+    raise_cheri_exception_impl(env, cause, regnum, addr, true, pc,
+                               (perm & CAP_PERM_STORE) ? CHERI_ACCESS_STORE
+                                                       : CHERI_ACCESS_LOAD);
 }
 
 static inline target_ulong check_ddc(CPUArchState *env, uint32_t perm,
@@ -337,29 +334,38 @@ static inline QEMU_ALWAYS_INLINE target_ulong cap_check_common_reg(
 
     bool is_load = (required_perms & CAP_PERM_LOAD) != 0;
     bool in_bounds = cap_is_in_bounds(cbp, addr, size);
+#ifdef TARGET_AARCH64
+    /* Morello sets ESR.WnR=0 when an atomic RMW fails a load-side check. */
+    const CheriAccessType access =
+        is_load ? CHERI_ACCESS_LOAD : CHERI_ACCESS_STORE;
+#else
+    const CheriAccessType access = (required_perms & CAP_PERM_STORE)
+                                       ? CHERI_ACCESS_STORE
+                                       : CHERI_ACCESS_LOAD;
+#endif
 
     if (!cbp->cr_tag) {
-        raise_cheri_exception_addr_wnr(env, CapEx_TagViolation, cb, addr,
-                                       !is_load);
+        raise_cheri_exception_access(env, CapEx_TagViolation, cb, addr, access);
     } else if (!cap_is_unsealed(cbp)) {
-        raise_cheri_exception_addr_wnr(env, CapEx_SealViolation, cb, addr,
-                                       !is_load);
+        raise_cheri_exception_access(env, CapEx_SealViolation, cb, addr,
+                                     access);
     } else if (MISSING_REQUIRED_PERM(CAP_PERM_LOAD)) {
-        raise_cheri_exception_addr_wnr(env, CapEx_PermitLoadViolation, cb, addr,
-                                       false);
+        raise_cheri_exception_access(env, CapEx_PermitLoadViolation, cb, addr,
+                                     access);
     } else if (MISSING_REQUIRED_PERM(CAP_PERM_LOAD_CAP)) {
-        raise_cheri_exception_addr_wnr(env, CapEx_PermitLoadCapViolation, cb,
-                                       addr, false);
+        raise_cheri_exception_access(env, CapEx_PermitLoadCapViolation, cb,
+                                     addr, access);
     } else if (!is_load || in_bounds) {
         if (MISSING_REQUIRED_PERM(CAP_PERM_STORE)) {
-            raise_cheri_exception_addr_wnr(env, CapEx_PermitStoreViolation, cb,
-                                           addr, true);
+            raise_cheri_exception_access(env, CapEx_PermitStoreViolation, cb,
+                                         addr, CHERI_ACCESS_STORE);
         } else if (MISSING_REQUIRED_PERM(CAP_PERM_STORE_CAP)) {
-            raise_cheri_exception_addr_wnr(env, CapEx_PermitStoreCapViolation,
-                                           cb, addr, true);
+            raise_cheri_exception_access(env, CapEx_PermitStoreCapViolation, cb,
+                                         addr, CHERI_ACCESS_STORE);
         } else if (MISSING_REQUIRED_PERM(CAP_PERM_STORE_LOCAL)) {
-            raise_cheri_exception_addr_wnr(
-                env, CapEx_PermitStoreLocalCapViolation, cb, addr, true);
+            raise_cheri_exception_access(
+                env, CapEx_PermitStoreLocalCapViolation, cb, addr,
+                CHERI_ACCESS_STORE);
         }
     }
 #undef MISSING_REQUIRED_PERM
@@ -370,8 +376,8 @@ static inline QEMU_ALWAYS_INLINE target_ulong cap_check_common_reg(
             "Failed capability bounds check: addr=" TARGET_FMT_lx
             " base=" TARGET_FMT_lx " top=" TARGET_FMT_lx "\n",
             addr, cap_get_base(cbp), cap_get_top(cbp));
-        raise_cheri_exception_addr_wnr(env, CapEx_LengthViolation, cb, addr,
-                                       !is_load);
+        raise_cheri_exception_access(env, CapEx_LengthViolation, cb, addr,
+                                     access);
     } else if (alignment_required &&
                !QEMU_IS_ALIGNED_P2(addr, alignment_required)) {
         if (unaligned_handler) {

@@ -43,6 +43,18 @@
 
 #define ASSERT_IF_CHERI() assert(0)
 
+typedef enum CheriAccessType {
+    /*
+     * MIPS has lots of raise_cheri_exception() calls where we don't say if
+     * it's a load/store/ifetch, so the macro passes this to avoid code churn.
+     * Should not be used for RISC-V or Morello.
+     */
+    CHERI_ACCESS_UNKNOWN,
+    CHERI_ACCESS_FETCH,
+    CHERI_ACCESS_LOAD,
+    CHERI_ACCESS_STORE,
+} CheriAccessType;
+
 #include "cheri-compressed-cap/cheri_compressed_cap.h"
 
 #define CHERI_DECLARE_ALIGNED_CC_CAP_T(suffix) \
