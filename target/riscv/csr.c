@@ -5037,6 +5037,16 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
  * table for now.
  */
 
+/*
+ * RVY 0.9.9 Section 16.3, Table 51: *tidc CSRs are YLEN-wide and require Y.
+ * Earlier specs had a separate extension with an XLEN view when Y is disabled.
+ */
+#ifdef TARGET_CHERI_RISCV_RVY
+#define CSR_OP_TIDC_FLAGS (CSR_OP_REQUIRE_Y | CSR_OP_DIRECT_WRITE)
+#else
+#define CSR_OP_TIDC_FLAGS (CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG)
+#endif
+
 static riscv_csr_cap_ops csr_cap_ops[] = {
     { "mscratchc", CSR_MSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
@@ -5055,13 +5065,13 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
     { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_REQUIRE_Y | CSR_OP_IA_CONVERSION },
     { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+      CSR_OP_TIDC_FLAGS },
     { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+      CSR_OP_TIDC_FLAGS },
     { "utidc", CSR_UTIDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+      CSR_OP_TIDC_FLAGS },
     { "vstidc", CSR_VSTIDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+      CSR_OP_TIDC_FLAGS },
     { "vsepcc", CSR_VSEPCC, read_xepcc, write_xepcc,
       CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG | CSR_OP_IS_CODE_PTR },
     { "vsscratchc", CSR_VSSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
