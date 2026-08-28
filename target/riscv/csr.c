@@ -4720,14 +4720,24 @@ static riscv_csr_cap_ops csr_cap_ops[] = {
       CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
     { "ddc", CSR_DDC, read_capcsr_reg, write_cap_csr_reg,
       CSR_OP_REQUIRE_Y | CSR_OP_IA_CONVERSION },
+    /*
+     * In RVY the *tidc registers are part of the base extension, where they
+     * are always YLEN and unavailable when CHERI is disabled. Earlier specs
+     * had a separate extension whose XLEN view does not require CHERI.
+     */
+#ifdef TARGET_CHERI_RISCV_RVY
+#define CSR_OP_TIDC_FLAGS (CSR_OP_REQUIRE_Y | CSR_OP_DIRECT_WRITE)
+#else
+#define CSR_OP_TIDC_FLAGS (CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG)
+#endif
     { "mtidc", CSR_MTIDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+      CSR_OP_TIDC_FLAGS },
     { "stidc", CSR_STIDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+      CSR_OP_TIDC_FLAGS },
     { "utidc", CSR_UTIDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+      CSR_OP_TIDC_FLAGS },
     { "vstidc", CSR_VSTIDC, read_capcsr_reg, write_cap_csr_reg,
-      CSR_OP_DIRECT_WRITE | CSR_OP_EXTENDED_REG },
+      CSR_OP_TIDC_FLAGS },
     { "vsepcc", CSR_VSEPCC, read_xepcc, write_xepcc,
       CSR_OP_IA_CONVERSION | CSR_OP_EXTENDED_REG | CSR_OP_IS_CODE_PTR },
     { "vsscratchc", CSR_VSSCRATCHC, read_capcsr_reg, write_cap_csr_reg,
