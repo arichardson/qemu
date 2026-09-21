@@ -2947,7 +2947,9 @@ static RISCVException write_vsscratch(CPURISCVState *env, int csrno,
 static RISCVException read_vsepc(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
-    *val = GET_SPECIAL_REG_ARCH(env, vsepc, vsepcc);
+    *val = GET_SPECIAL_REG_ARCH(env, vsepc, vsepcc) &
+           ~(target_ulong)((riscv_has_ext(env, RVC) ||
+                            env_archcpu(env)->cfg.ext_zca) ? 1 : 3);
     return RISCV_EXCP_NONE;
 }
 
@@ -3660,11 +3662,12 @@ static void write_cap_csr_reg(CPURISCVState *env,
     if (clen) {
         if (csr_cap_info->flags & CSR_OP_IA_CONVERSION) {
             bool changed = validate_cap_address(env, &src, &newval);
-            if (csr_cap_info->flags & CSR_OP_UPDATE_SCADDR) {
-                /* E.g. xtvec always invalidates sealed caps */
-                src = cap_scaddr(newval, src);
-            } else if (changed) {
-                /* Only use scaddr if validate changed the address (e.g. epc) */
+            if ((csr_cap_info->flags & CSR_OP_UPDATE_SCADDR) || changed ||
+                newval != cap_get_cursor(&src)) {
+                /*
+                 * Apply YADDRW semantics when the CSR requires it (e.g. xtvec)
+                 * or when address legalization modified the written address.
+                 */
                 src = cap_scaddr(newval, src);
             }
         }
@@ -3708,7 +3711,10 @@ static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
                          csr_cap_info->name);
     }
 
-    if (!is_representable_cap_with_addr(auth, new_tvec + RISCV_HICAUSE * 4)) {
+    target_ulong base_tvec = new_tvec & ~(target_ulong)3;
+    if (!is_representable_cap_with_addr(auth, base_tvec) ||
+        !is_representable_cap_with_addr(auth,
+                                        base_tvec + RISCV_HICAUSE * 4)) {
         error_report("Attempting to set vector register with unrepresentable "
                      "range (0x" TARGET_FMT_lx ") on %s: " PRINT_CAP_FMTSTR
                      "\r\n",
@@ -3734,7 +3740,7 @@ static void write_xtvecc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
 static void write_xepcc(CPURISCVState *env, riscv_csr_cap_ops *csr_cap_info,
                         cap_register_t src, target_ulong new_xepcc, bool clen)
 {
-    new_xepcc &= (~0x1); // Zero bit zero
+    new_xepcc &= ~(target_ulong)1; // Zero bit zero
     write_cap_csr_reg(env, csr_cap_info, src, new_xepcc, clen);
 }
 
@@ -3748,7 +3754,8 @@ static cap_register_t read_xepcc(CPURISCVState *env,
     // RISC-V privileged spec 4.1.7 Supervisor Exception Program Counter
     // (sepc) "The low bit of sepc (sepc[0]) is always zero. [...] Whenever
     // IALIGN=32, sepc[1] is masked on reads so that it appears to be 0."
-    val &= ~(target_ulong)(riscv_has_ext(env, RVC) ? 1 : 3);
+    val &= ~(target_ulong)((riscv_has_ext(env, RVC) ||
+                            env_archcpu(env)->cfg.ext_zca) ? 1 : 3);
     if (val != cap_get_cursor(&retval)) {
         warn_report("Clearing low bit(s) of %s (contained an unaligned "
                     "capability): " PRINT_CAP_FMTSTR, csr_cap_info->name,
