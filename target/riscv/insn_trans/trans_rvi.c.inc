@@ -917,10 +917,11 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
     return true;
 }
 
-static inline bool is_cap_csr(uint32_t csrno)
+static inline bool is_cap_csr(DisasContext *ctx G_GNUC_UNUSED,
+                              int *csrno G_GNUC_UNUSED)
 {
 #ifdef TARGET_CHERI
-    return get_csr_cap_info(csrno) != NULL;
+    return get_csr_cap_info(*csrno) != NULL;
 #else
     return false;
 #endif
@@ -941,7 +942,7 @@ static bool do_csrr(DisasContext *ctx, int rd, int rc)
 {
     TCGv dest = dest_gpr(ctx, rd);
     TCGv_i32 csr = tcg_constant_i32(rc);
-    cheri_debug_assert(!is_cap_csr(rc));
+    cheri_debug_assert(!is_cap_csr(ctx, &rc));
 
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
@@ -954,7 +955,7 @@ static bool do_csrr(DisasContext *ctx, int rd, int rc)
 static bool do_csrw(DisasContext *ctx, int rc, TCGv src)
 {
     TCGv_i32 csr = tcg_constant_i32(rc);
-    cheri_debug_assert(!is_cap_csr(rc));
+    cheri_debug_assert(!is_cap_csr(ctx, &rc));
 
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
@@ -967,7 +968,7 @@ static bool do_csrrw(DisasContext *ctx, int rd, int rc, TCGv src, TCGv mask)
 {
     TCGv dest = dest_gpr(ctx, rd);
     TCGv_i32 csr = tcg_constant_i32(rc);
-    cheri_debug_assert(!is_cap_csr(rc));
+    cheri_debug_assert(!is_cap_csr(ctx, &rc));
 
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
@@ -1026,7 +1027,7 @@ static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
     RISCVMXL xl = get_xl(ctx);
     if (xl < MXL_RV128) {
 #ifdef TARGET_CHERI
-        if (is_cap_csr(a->csr)) {
+        if (is_cap_csr(ctx, &a->csr)) {
             gen_helper_csrrw_cap(cpu_env, tcg_constant_i32(a->csr),
                                  tcg_constant_i32(a->rd),
                                  tcg_constant_i32(a->rs1));
@@ -1069,7 +1070,7 @@ static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
 static bool trans_csrrs(DisasContext *ctx, arg_csrrs *a)
 {
 #ifdef TARGET_CHERI
-    if (is_cap_csr(a->csr)) {
+    if (is_cap_csr(ctx, &a->csr)) {
         gen_helper_csrrs_cap(cpu_env, tcg_constant_i32(a->csr),
                              tcg_constant_i32(a->rd), tcg_constant_i32(a->rs1));
         return do_csr_post(ctx);
@@ -1109,7 +1110,7 @@ static bool trans_csrrs(DisasContext *ctx, arg_csrrs *a)
 static bool trans_csrrc(DisasContext *ctx, arg_csrrc *a)
 {
 #ifdef TARGET_CHERI
-    if (is_cap_csr(a->csr)) {
+    if (is_cap_csr(ctx, &a->csr)) {
         gen_helper_csrrc_cap(cpu_env, tcg_constant_i32(a->csr),
                              tcg_constant_i32(a->rd), tcg_constant_i32(a->rs1));
         return do_csr_post(ctx);
@@ -1150,7 +1151,7 @@ static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
     RISCVMXL xl = get_xl(ctx);
     if (xl < MXL_RV128) {
 #ifdef TARGET_CHERI
-        if (is_cap_csr(a->csr)) {
+        if (is_cap_csr(ctx, &a->csr)) {
             gen_helper_csrrwi_cap(cpu_env, tcg_constant_i32(a->csr),
                                   tcg_constant_i32(a->rd),
                                   tcg_constant_i32(a->rs1));
@@ -1193,7 +1194,7 @@ static bool trans_csrrwi(DisasContext *ctx, arg_csrrwi *a)
 static bool trans_csrrsi(DisasContext *ctx, arg_csrrsi *a)
 {
 #ifdef TARGET_CHERI
-    if (is_cap_csr(a->csr)) {
+    if (is_cap_csr(ctx, &a->csr)) {
         gen_helper_csrrsi_cap(cpu_env, tcg_constant_i32(a->csr),
                               tcg_constant_i32(a->rd),
                               tcg_constant_i32(a->rs1));
@@ -1233,7 +1234,7 @@ static bool trans_csrrsi(DisasContext *ctx, arg_csrrsi *a)
 static bool trans_csrrci(DisasContext *ctx, arg_csrrci * a)
 {
 #ifdef TARGET_CHERI
-    if (is_cap_csr(a->csr)) {
+    if (is_cap_csr(ctx, &a->csr)) {
         gen_helper_csrrci_cap(cpu_env, tcg_constant_i32(a->csr),
                               tcg_constant_i32(a->rd),
                               tcg_constant_i32(a->rs1));
