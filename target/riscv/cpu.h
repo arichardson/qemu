@@ -105,6 +105,13 @@ enum {
 
 #define VEXT_VERSION_1_00_0 0x00010000
 
+#ifdef TARGET_CHERI_RISCV_RVY
+enum {
+    RVY_VERSION_0_9_10 = 0,
+    RVY_VERSION_0_9_9,
+};
+#endif
+
 enum {
     TRANSLATE_SUCCESS,
     TRANSLATE_FAIL,
@@ -633,6 +640,10 @@ struct RISCVCPUConfig {
 #endif
     uint8_t lvbits; /* Only 0 and 1 (Zylevels1) are currently supported. */
     bool ext_svyrg;
+#ifdef TARGET_CHERI_RISCV_RVY
+    uint8_t rvy_ver;
+    char *rvy_spec;
+#endif
 #endif
 #endif
 

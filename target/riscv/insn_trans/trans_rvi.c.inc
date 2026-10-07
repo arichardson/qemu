@@ -197,13 +197,32 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
     return true;
 }
 
+/* BEQ/BNE with rs1 <= rs2 were reserved in capability mode in 0.9.9. */
+static bool rvy_branch_encoding_reserved(DisasContext *ctx G_GNUC_UNUSED,
+                                         int rs1 G_GNUC_UNUSED,
+                                         int rs2 G_GNUC_UNUSED)
+{
+#ifdef TARGET_CHERI_RISCV_RVY
+    return ctx->cfg_ptr->rvy_ver == RVY_VERSION_0_9_9 &&
+           ctx->capmode && rs1 <= rs2;
+#else
+    return false;
+#endif
+}
+
 static bool trans_beq(DisasContext *ctx, arg_beq *a)
 {
+    if (rvy_branch_encoding_reserved(ctx, a->rs1, a->rs2)) {
+        return false;
+    }
     return gen_branch(ctx, a, TCG_COND_EQ);
 }
 
 static bool trans_bne(DisasContext *ctx, arg_bne *a)
 {
+    if (rvy_branch_encoding_reserved(ctx, a->rs1, a->rs2)) {
+        return false;
+    }
     return gen_branch(ctx, a, TCG_COND_NE);
 }
 
@@ -921,6 +940,35 @@ static inline bool is_cap_csr(DisasContext *ctx G_GNUC_UNUSED,
                               int *csrno G_GNUC_UNUSED)
 {
 #ifdef TARGET_CHERI
+#ifdef TARGET_CHERI_RISCV_RVY
+    /* Remap 0.9.9 ddc and *tidc CSR numbers and reject the 0.9.10 ones. */
+    if (ctx->cfg_ptr->rvy_ver == RVY_VERSION_0_9_9) {
+        switch (*csrno) {
+        case 0x416:
+            *csrno = CSR_DDC;
+            break;
+        case 0x480:
+            *csrno = CSR_UTIDC;
+            break;
+        case 0x580:
+            *csrno = CSR_STIDC;
+            break;
+        case 0xa80:
+            *csrno = CSR_VSTIDC;
+            break;
+        case 0x780:
+            *csrno = CSR_MTIDC;
+            break;
+        case CSR_DDC:
+        case CSR_UTIDC:
+        case CSR_STIDC:
+        case CSR_VSTIDC:
+        case CSR_MTIDC:
+            *csrno = 0; /* Unallocated CSR -> RISCV_EXCP_ILLEGAL_INST */
+            return false;
+        }
+    }
+#endif
     return get_csr_cap_info(*csrno) != NULL;
 #else
     return false;

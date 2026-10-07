@@ -1119,6 +1119,7 @@ typedef enum {
     rv_op_lr_y,
     rv_op_amoswap_y,
     rv_op_sc_y,
+    rv_op_srliy_099,
 } rv_op;
 
 /* structures */
@@ -2485,6 +2486,7 @@ const rv_opcode_data opcode_data[] = {
     [rv_op_lr_y] = { "lr.y", rv_codec_r_l, rv_fmt_aqrl_rd_rs1, NULL, 0, 0, 0 },
     [rv_op_amoswap_y] = { "amoswap.y", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
     [rv_op_sc_y] = { "sc.y", rv_codec_r_a, rv_fmt_aqrl_rd_rs2_rs1, NULL, 0, 0, 0 },
+    [rv_op_srliy_099] = { "srliy", rv_codec_i_sh7, rv_fmt_rd_rs1_imm, NULL, 0, 0, 0 },
 };
 
 /* CSR names */
@@ -2845,6 +2847,10 @@ static rv_opcode decode_cheri_rvy(rv_inst inst)
     case 5:
         if ((inst >> 29) == 7) {
             return rv_op_ybndswi;
+        }
+        /* srliy has a 7 bit shamt, so only the top five bits must be zero. */
+        if ((inst >> 27) == 0) {
+            return rv_op_srliy_099;
         }
         break;
     }
