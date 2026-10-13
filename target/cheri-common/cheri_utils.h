@@ -74,142 +74,19 @@ static inline target_ulong cap_get_all_perms(const cap_register_t *c)
 }
 
 #ifdef TARGET_CHERI_RISCV_STD
-/* TODO: move this into cheri-compressed-cap */
-#define RVY_AP_C   CAP_CC(PERM_CAPABILITY)
-#define RVY_AP_W   CAP_CC(PERM_WRITE)
-#define RVY_AP_R   CAP_CC(PERM_READ)
-#define RVY_AP_X   CAP_CC(PERM_EXECUTE)
-#define RVY_AP_ASR CAP_CC(PERM_ACCESS_SYS_REGS)
-#define RVY_AP_LM  CAP_CC(PERM_LOAD_MUTABLE)
-#define RVY_AP_EL  CAP_CC(PERM_ELEVATE_LEVEL)
-#define RVY_AP_SL  CAP_CC(PERM_STORE_LEVEL)
-#define PERM_RULE(bit, cond)                                                   \
-    do {                                                                       \
-        if (perms & (bit)) {                                                   \
-            if (!(cond)) {                                                     \
-                perms &= ~(bit);                                               \
-                updated = true;                                                \
-            }                                                                  \
-        }                                                                      \
-    } while (0)
-
-/*
- * Fix up a set of (M, AP) to be in line with the rules for the acperm
- * instruction, resulting in a set that could have been created by acperm.
- * Return true if the input set had to be modified for this or false if
- * the input set is already compliant to the acperm rules.
- */
-static inline bool fix_up_ap(CPUArchState *env, target_ulong *perms_result)
-{
-    bool updated = false;
-    RISCVCPU *cpu = env_archcpu(env);
-    target_ulong perms = *perms_result;
-    uint8_t lvbits = cpu->cfg.lvbits;
-
-    /*
-     * The code below tries to follow the rules in the risc-v cheri
-     * specification as closely as possible. This should make it easier
-     * to find bugs.
-     */
-
-#if CAP_CC(ADDR_WIDTH) == 32
-    {
-        target_ulong non_asr_perms = RVY_AP_C | RVY_AP_R | RVY_AP_W | RVY_AP_X;
-        non_asr_perms |= RVY_AP_LM;
-        if (lvbits > 0) {
-            non_asr_perms |= RVY_AP_EL | RVY_AP_SL;
-        }
-
-        /* rule 1 */
-        PERM_RULE(RVY_AP_ASR, (perms & non_asr_perms) == non_asr_perms);
-    }
-#endif
-
-    /* rule 2 */
-    PERM_RULE(RVY_AP_C, perms & (RVY_AP_R | RVY_AP_W));
-
-#if CAP_CC(ADDR_WIDTH) == 32
-    /* rule 3 */
-    PERM_RULE(RVY_AP_C, perms & RVY_AP_R);
-
-    /* rule 4 */
-    PERM_RULE(RVY_AP_X, perms & RVY_AP_R);
-
-    /* rule 5 */
-    PERM_RULE(RVY_AP_W, !(perms & RVY_AP_C) || (perms & RVY_AP_LM));
-
-    /* rule 6 */
-    PERM_RULE(RVY_AP_X, perms & (RVY_AP_W | RVY_AP_C));
-#endif
-
-    /* rule 7 */
-    if (lvbits > 0) {
-        PERM_RULE(RVY_AP_EL,
-                  (perms & (RVY_AP_C | RVY_AP_R)) == (RVY_AP_C | RVY_AP_R));
-    }
-
-#if CAP_CC(ADDR_WIDTH) == 32
-    /* rule 8 */
-    if (lvbits > 0) {
-        PERM_RULE(RVY_AP_EL, perms & RVY_AP_LM);
-    }
-#endif
-
-    /* rule 9 */
-    PERM_RULE(RVY_AP_LM,
-              (perms & (RVY_AP_C | RVY_AP_R)) == (RVY_AP_C | RVY_AP_R));
-
-#if CAP_CC(ADDR_WIDTH) == 32
-    /* rule 10 */
-    if (lvbits > 0) {
-        PERM_RULE(RVY_AP_LM, perms & (RVY_AP_W | RVY_AP_EL));
-    }
-#endif
-
-    /* rule 11 */
-    if (lvbits > 0) {
-        PERM_RULE(RVY_AP_SL, perms & RVY_AP_C);
-    }
-
-#if CAP_CC(ADDR_WIDTH) == 32
-    /* rule 12 */
-    if (lvbits > 0) {
-        /* SL requires LM and (X or W) */
-        PERM_RULE(RVY_AP_SL, perms & RVY_AP_LM);
-        PERM_RULE(RVY_AP_SL, perms & (RVY_AP_X | RVY_AP_W));
-    }
-
-    /* rule 13 */
-    target_ulong cmp_mask = RVY_AP_C | RVY_AP_LM;
-    if (lvbits > 0) {
-        cmp_mask |= (RVY_AP_EL | RVY_AP_SL);
-    }
-    PERM_RULE(RVY_AP_X,
-              ((perms & cmp_mask) == 0) || ((perms & cmp_mask) == cmp_mask));
-#endif
-
-    /* rule 14 */
-    PERM_RULE(RVY_AP_ASR, perms & RVY_AP_X);
-
-    *perms_result = perms;
-    return updated;
-}
-
-static inline bool fix_up_exec_mode(G_GNUC_UNUSED CPUArchState *env,
-                                    G_GNUC_UNUSED CheriExecMode *mode,
-                                    G_GNUC_UNUSED target_ulong perms)
+static inline bool fix_up_exec_mode(CPUArchState *env, CheriExecMode *mode,
+                                    target_ulong perms)
 {
     /* ACPERM rules M=1 X=0 reserved */
     if (*mode == 1) {
         bool hybrid_support = riscv_feature(env, RISCV_FEATURE_CHERI_HYBRID);
-        if (!(perms & RVY_AP_X) || !hybrid_support) {
+        if (!(perms & CAP_PERM_EXECUTE) || !hybrid_support) {
             *mode = 0;
             return true;
         }
     }
     return false;
 }
-
 #endif
 /**
  * Updates @p cap and @p perms to legal and encodable values.
@@ -217,18 +94,15 @@ static inline bool fix_up_exec_mode(G_GNUC_UNUSED CPUArchState *env,
  * @returns true if the values are legal, false if changes were made.
  */
 static inline bool cap_legalize_perms(G_GNUC_UNUSED CPUArchState *env,
-                                      G_GNUC_UNUSED const cap_register_t *cap,
-                                      G_GNUC_UNUSED target_ulong *perms)
+                                      const cap_register_t *cap,
+                                      target_ulong *perms)
 {
-    /*
-     * For now the only architecture with constraints on the valid permissions
-     * is the RISC-V standard version.
-     */
+    target_ulong orig_perms = *perms;
 #ifdef TARGET_CHERI_RISCV_STD
-    return fix_up_ap(env, perms) == false;
-#else
-    return true;
+    cheri_debug_assert(cap->cr_lvbits == env_archcpu(env)->cfg.lvbits);
 #endif
+    *perms = CAP_cc(legalize_permissions)(cap, orig_perms);
+    return *perms == orig_perms;
 }
 
 static inline bool cap_set_perms(CPUArchState *env, cap_register_t *c,
@@ -272,11 +146,14 @@ cap_has_invalid_perms_encoding(G_GNUC_UNUSED CPUArchState *env,
                                const cap_register_t *c)
 {
 #ifdef TARGET_CHERI_RISCV_STD
-    target_ulong perms = cap_get_all_perms(c);
+    cheri_debug_assert(c->cr_lvbits == env_archcpu(env)->cfg.lvbits);
+    if (!CAP_cc(has_valid_permissions_encoding)(c)) {
+        return true;
+    }
     CheriExecMode mode = cap_get_exec_mode(c);
-    return fix_up_ap(env, &perms) || fix_up_exec_mode(env, &mode, perms);
+    return fix_up_exec_mode(env, &mode, cap_get_all_perms(c));
 #else
-    return false;
+    return !CAP_cc(has_valid_permissions_encoding)(c);
 #endif
 }
 
